@@ -28,6 +28,28 @@ uint8_t hex2int(char *buf)
 	return t;
 }
 
+/* speed to head_deg */
+float head_deg(float V_we, float V_sn)
+{	float h;
+	if(abs(V_sn)<0.01) {
+		if(V_we>=0) 
+			h = 90;
+		else h = 270;
+	}
+	if(V_sn>0) {
+		if(V_we>=0) 
+			h = atan(V_we/V_sn)*180/3.1415926;
+		else
+			h = 360.0 - atan(-V_we/V_sn)*180/3.1415926;
+	} else {
+		if(V_we>=0) 
+			h = 180.0 - atan(-V_we/V_sn)*180/3.1415926;
+		else
+			h = 180.0 + atan(V_we/V_sn)*180/3.1415926;
+	}
+	return h;
+}
+
 /* 
 http://adsb-decode-guide.readthedocs.io/en/latest/introduction.html
    decode hex "8D4840D6202CC371C32CE0576098" 28 byte message
@@ -145,21 +167,38 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d\n",DF,CA,ICAO24,TC);
 				V_sn = 1.0-V_NS;
 			else V_sn = V_NS-1.0;
 			V = sqrt(V_sn*V_sn + V_we*V_we);
-			if(abs(V_sn)<0.01) {
-				if(S_EW) h = 270;
-				else h = 90;
-			} else if(V_sn>0) {
-				h = atan(V_we/V_sn)*360/2/3.1415926;
-				if(h<=0) h+=360;
-			} else {
-				h = atan(V_we/V_sn)*360/2/3.1415926;
-				if(h<=0) h+=360;
-			}
-
-			LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.0f\n\n",S_EW,V_we,S_NS,V_sn,V,h);
+			h = head_deg(V_we, V_sn);
+			
+			LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
+		} else if(ST==3 || ST==4) { // subtype 3 or 4
+/*
+|  DATA       * +1                             *+2       *+3               *+4                      *+5                *+6               |
+|-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|--------||-------|---------|
+|  TC   | ST  || IC | RESV_A | NAC | H-s  | Hdg          || AS-t | AS     ||    | VrSrc | S-Vr | Vr          | RESV_B || S-Dif | Dif     |
+|-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|--------||-------|---------|
+| 10011 | 011 || 0  | 0      | 000 | 1    | 10||10110110 || 1    | 0101111||000 | 1     | 1    | 000||100101 | 00     || 0     | 0000000 |
+*/
+			uint8_t H_S, AS_t, VrSrc,S_Vr,S_Dif, Dif;
+			uint16_t Hdg, AS, Vr;
+			float V_we, V_sn ,V,h;
+			H_S = (*(DATA+1)>>2)&1;
+			Hdg = ((*(DATA+1)&0x3)<<8) + *(DATA+2);
+			AS_t = (*(DATA+3)>>7);
+			AS = ((*(DATA+3)&0x7F)<<3) + (*(DATA+4)>>5);
+			VrSrc = (*(DATA+4)>>4) & 1;
+			S_Vr = (*(DATA+4)>>3) & 1;
+			Vr = ((*(DATA+4)&0x7)<<6) + (*(DATA+5)>>2);
+			S_Dif = (*(DATA+6)>>7) & 1;
+			Dif = *(DATA+6) & 0x7F;
+			if(H_S)
+				h = Hdg/1024.0*360.0;
+			LOG("V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n\n",AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-',Vr);
 		}
 	}
 }
+
+
+
 main(int argc, char *argv[])
 {	FILE *fp;
 	char buf[MAXLEN];
@@ -172,8 +211,6 @@ main(int argc, char *argv[])
 	fp = fopen("adsb.txt","r");
 	i=0;
 	while(fgets(buf,MAXLEN,fp)) {
-		i++;
-		if(i==1) exit;
 		if(buf[0]!='*') 
 			continue;
 		if(strlen(buf+1)<28)
