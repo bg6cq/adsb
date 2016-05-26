@@ -8,6 +8,64 @@
 #define LOG printf
 #define MAXLEN 16384
 
+// max flights to track
+#define MAXID 	100
+
+
+char icaos[MAXID][7];
+time_t utm[MAXID];
+uint32_t LAT_CPR_EVEN[MAXID];
+uint32_t LON_CPR_EVEN[MAXID];
+
+// 保存F=0的CPR，以备后续F=1的CPR计算位置
+// 信息保存10秒
+void save_even_cpr(char *ICAO, uint32_t lat, uint32_t lon)
+{	int i;
+	time_t ctm=time(NULL);
+	for(i=0;i<MAXID;i++) {
+		if( icaos[i][0] == 0 ) // i位置为空，可以存
+			break;
+		if( ctm-utm[i] > 10 )  // i 位置的数据太老，可以覆盖
+			break;
+		if( strcmp(icaos[i],ICAO)==0 ) // i 位置存放的是之前的信息，可以覆盖
+			break;
+	}
+	if(i==MAXID) { // 满了，不存
+		LOG("Too Many Aircraft to track\n");
+		return;
+	}
+	strcpy(icaos[i], ICAO);
+	LAT_CPR_EVEN[i]= lat;
+	LON_CPR_EVEN[i]= lon;
+	utm[i]=ctm;
+	LOG("save %s in %d\n", ICAO, i);
+}
+
+// 取回最近的F=0 CPR信息, 找不到返回0
+int find_even_cpr(char *ICAO, uint32_t *lat, uint32_t *lon) 
+{	int found=0, i;
+	time_t ctm=time(NULL);
+	for(i=0;i<MAXID;i++) {
+		if( icaos[i][0] == 0 ) // i位置为空，没找到
+			break;
+		if( strcmp(icaos[i], ICAO)==0) { // 找到了
+			found = 1;
+			break;
+		}
+	}
+	if(!found) 
+		return 0;
+	if( ctm-utm[i] > 10 )  // i 位置的数据太老, 相当于没找到
+		return 0;
+	*lat = LAT_CPR_EVEN[i];
+	*lon = LON_CPR_EVEN[i];
+	LOG("found CPR_EVEN %s in %d\n", ICAO, i);
+	return 1;
+}
+
+void DecodeCPR(char *ICAO, uint32_t LAT_CPR_E, uint32_t LON_CPR_E, uint32_t LAT_CPR_O, uint32_t LON_CPR_O, uint16_t ALT)
+{
+}
 
 /* convert 2 byte hex to int8, such as
    "FF" -> (int) 255
@@ -92,9 +150,9 @@ void decode_adsb(uint8_t *buf)
 	uint8_t DATA[8];
 	decode_adsb_outer_layer(buf, &DF, &CA, ICAO24, DATA, &TC, &PC);
 LOG("msg: %s\n",buf);
-LOG("DF=%d CA=%d ICAO=%s TC=%d\n",DF,CA,ICAO24,TC);
+LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 	if(DF!=17) {
-		LOG("I only know DF=17\n");
+		LOG("Error: I only know DF=17\n");
 		return;
 	}
 	if((TC>=1) && (TC<=4)) {		// Aircraft Identification
@@ -115,7 +173,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d\n",DF,CA,ICAO24,TC);
 		aid[6] = aidcharset[(t>>6)&0x3f];
 		aid[7] = aidcharset[(t)&0x3f];
 		aid[8]=0;	
-		LOG("aid=%s\n\n",aid);
+		LOG("aid=%s\n",aid);
 	} else if((TC>=9) && (TC<=18)) {		// Airborne Positions
 /*
  | DATA               *+1        *+2                *+3       *+4          *+5       +6         |
@@ -129,9 +187,22 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
 		static char lastICAO[7];
 		static lastF;
 		uint16_t ALT;
-		static uint32_t LAT_CPR_E, LAT_CPR_O, LON_CPR_E, LON_CPR_O;
+		uint32_t LAT_CPR_E, LAT_CPR_O, LON_CPR_E, LON_CPR_O;
 		F = (*(DATA+2) >> 2) & 1;
-		LOG("F=%d\n\n",F);
+		LOG("F=%d ",F);
+		if(F==0) { // F=0 时，保存 CPR信息 
+			LAT_CPR_E = ((*(DATA+2)&0x3)<<15) + (*(DATA+3)<<7) + (*(DATA+4)>>1);
+			LON_CPR_E = ((*(DATA+4)&1)<<16) + (*(DATA+5)<<8) + *(DATA+6);
+			save_even_cpr(ICAO24, LAT_CPR_E, LON_CPR_E);
+		} else { // F=1 时，取得保存的CPR信息一起计算位置	
+			ALT = (*(DATA+1)<<4) + (*(DATA+2)>>4);
+			LAT_CPR_O = ((*(DATA+2)&0x3)<<15) + (*(DATA+3)<<7) + (*(DATA+4)>>1);
+			LON_CPR_O = ((*(DATA+4)&1)<<16) + (*(DATA+5)<<8) + *(DATA+6);
+			if(find_even_cpr(ICAO24,&LAT_CPR_E,&LON_CPR_E)) {
+				DecodeCPR(ICAO24, LAT_CPR_E, LON_CPR_E, LAT_CPR_O, LON_CPR_O,  ALT);
+			}
+		}
+		LOG("\n");
 	} else if(TC==19) {		// Airborne Velocity
 		uint8_t ST;
 		ST = *DATA & 0x7;
@@ -165,7 +236,8 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
 			V = sqrt(V_sn*V_sn + V_we*V_we);
 			h = head_deg(V_we, V_sn);
 			
-			LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
+		//	LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
+			LOG(" V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",V,h, S_Vr==0?'+':'-',Vr);
 		} else if(ST==3 || ST==4) { // subtype 3 or 4
 /*
 |  DATA       * +1                             *+2       *+3               *+4                      *+5                *+6               |
@@ -188,7 +260,7 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
 			Dif = *(DATA+6) & 0x7F;
 			if(H_S)
 				h = Hdg/1024.0*360.0;
-			LOG("V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n\n",AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-',Vr);
+			LOG("V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n",AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-',Vr);
 		}
 	}
 }
