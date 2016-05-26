@@ -1,22 +1,31 @@
+/* ADS-B decoder by james@ustc.edu.cn
+
+thanks to:
+http://adsb-decode-guide.readthedocs.io
+https://github.com/etabbone/01.ADSB_BSBv6_UPS
+
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
 
-
-#define LOG printf
-#define MAXLEN 16384
-
-// max flights to track
-#define MAXID 	100
-
 //#define MOREDEBUG 1
 
+#define LOG printf
+
+#define MAXLEN 16384
+// max number of airbornes to track
+#define MAXID 	100
+
+// 最近100秒接收到的ICAO和AID对应
 char icaos[MAXID][7];
 char aid[MAXID][9];
 time_t aidtm[MAXID];
 
+// 最近10秒的位置信息包
 char cpricaos[MAXID][7];
 time_t utm[MAXID];
 uint32_t LAT_CPR_EVEN[MAXID];
@@ -46,6 +55,7 @@ void save_aid(char *ICAO, char *AID)
 #endif
 }
 
+// 根据ICAO 找出AID索引
 int find_aid(char *ICAO)
 {	int found=0,i;
 	time_t ctm=time(NULL);
@@ -117,7 +127,8 @@ int find_even_cpr(char *ICAO, uint32_t *lat, uint32_t *lon)
 	return 1;
 }
 
-//james
+// From https://github.com/etabbone/01.ADSB_BSBv6_UPS
+//
 //=========================================================================
 //
 // Always positive MOD operation, used for CPR decoding.
@@ -297,7 +308,7 @@ uint8_t hex2int(char *buf)
 	return t;
 }
 
-/* speed to head_deg */
+/* V_we V_sn speed to head_deg */
 float head_deg(float V_we, float V_sn)
 {	float h;
 	h = atan2(V_we, V_sn)*180.0/3.1415926;
@@ -315,27 +326,22 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 	uint8_t *DATA, uint8_t *TC, uint32_t *PC)
 {
 	int i;
+	uint8_t t;
 	if(strlen(buf)!=28) {
-		LOG("msg %s len!=28\n",buf);
+		LOG("WARN: msg %s len!=28\n",buf);
 		return 0;
 	}
 	for(i=0;i<28;i++) {
 		if( isxdigit(buf[i])) continue;
-		LOG("msg %s:%d %c is not a hex\n",buf,i,buf[i]);
+		LOG("ERROR: msg %s:%d %c is not a hex\n",buf,i,buf[i]);
 		return 0;
 	}
-	uint8_t t;
 	t = hex2int(buf);
 	*DF = t >> 3;
 	*CA = t & 0x7;
 	for(i=0;i<6;i++)
 		ICAO24[i]=*(buf+i+2);
 	ICAO24[6]=0;
-/*	
-	*ICAO24 = hex2int(buf+2);
-	*ICAO24 = ( *ICAO24 << 8) +hex2int(buf+4);
-	*ICAO24 = ( *ICAO24 << 8) +hex2int(buf+6);
-*/
 	*DATA = hex2int(buf+8);
 	*(DATA+1) = hex2int(buf+10);
 	*(DATA+2) = hex2int(buf+12);
@@ -365,22 +371,18 @@ LOG("msg: %s\n",buf);
 LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 #endif
 	if(DF!=17) {
-		LOG("Error: I only know DF=17\n");
+		LOG("ERROR: I only know DF=17\n");
 		return;
 	}
 	if((TC>=1) && (TC<=4)) {		// Aircraft Identification
 		char aid[9];
 		uint32_t t;
-		t = *(DATA+1) << 16;
-		t += (*(DATA+2) << 8);	
-		t += (*(DATA+3));	
+		t = (*(DATA+1)<<16) + (*(DATA+2)<<8) + (*(DATA+3));	
 		aid[0] = aidcharset[t>>18];
 		aid[1] = aidcharset[(t>>12)&0x3f];
 		aid[2] = aidcharset[(t>>6)&0x3f];
 		aid[3] = aidcharset[(t)&0x3f];
-		t = *(DATA+4) << 16;
-		t += (*(DATA+5) << 8);	
-		t += (*(DATA+6));	
+		t = (*(DATA+4)<<16) + (*(DATA+5)<<8) + (*(DATA+6));	
 		aid[4] = aidcharset[t>>18];
 		aid[5] = aidcharset[(t>>12)&0x3f];
 		aid[6] = aidcharset[(t>>6)&0x3f];
@@ -390,24 +392,23 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 #ifdef MOREDEBUG
 		LOG("aid=%s\n",aid);
 #endif
-	} else if((TC>=9) && (TC<=18)) {		// Airborne Positions
+	} else if((TC>=9) && (TC<=18)) {	// Airborne Positions
 /*
- | DATA               *+1        *+2                *+3       *+4          *+5       +6         |
- | TC    | SS | NICsb || ALT     ||     | T | F | LA||T-CPR   ||        | L||ON-CPR  ||         |
--|-------|----|-------||---------||-----|---|---|---||--------||--------|--||--------||---------|
- | 01011 | 00 | 0     || 11000011||1000 | 0 | 0 | 10||11010110||1001000 | 0||11001000||10101100 |
- | 01011 | 00 | 0     || 11000011||1000 | 0 | 1 | 10||01000011||0101110 | 0||11000100||00010010 |
-https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
+| DATA               *+1         *+2                *+3       *+4          *+5       *+6       |
+| TC    | SS | NICsb || ALT     ||     | T | F | LA||T-CPR   ||        | L||ON-CPR  ||         |
+|-------|----|-------||---------||-----|---|---|---||--------||--------|--||--------||---------|
+| 01011 | 00 | 0     || 11000011||1000 | 0 | 0 | 10||11010110||1001000 | 0||11001000||10101100 |
+| 01011 | 00 | 0     || 11000011||1000 | 0 | 1 | 10||01000011||0101110 | 0||11000100||00010010 |
 */
 		uint8_t F;
 		static char lastICAO[7];
 		static lastF;
 		uint16_t ALT;
 		uint32_t LAT_CPR_E, LAT_CPR_O, LON_CPR_E, LON_CPR_O;
-		int aidindex=find_aid(ICAO24);
+		int aidindex = find_aid(ICAO24);
 		if(aidindex==-1)  // 没找到aid，不继续处理
 			return ;
-		F = (*(DATA+2) >> 2) & 1;
+		F = (*(DATA+2)>>2) & 1;
 #ifdef	MOREDEBUG
 		LOG("F=%d ",F);
 #endif
@@ -423,9 +424,9 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
 				DecodeCPR(ICAO24, LAT_CPR_E, LON_CPR_E, LAT_CPR_O, LON_CPR_O, ALT, aidindex);
 			}
 		}
-	} else if(TC==19) {		// Airborne Velocity
+	} else if(TC==19) {			// Airborne Velocity
 		uint8_t ST;
-		int aidindex=find_aid(ICAO24);
+		int aidindex = find_aid(ICAO24);
 		if(aidindex==-1)  // 没找到aid，不继续处理
 			return ;
 		ST = *DATA & 0x7;
@@ -434,11 +435,11 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
 #endif
 		if(ST==1 || ST==2) { // subtype 1 or 2
 /*
-|  DATA       *   +1                          * +2       * +3             *+4                       *+5            * +6                   | CRC                      |
-|-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|--------------------------|
-|  TC   | ST  || IC | RESV_A | NAC | S-EW | V-||EW       || S-NS | V-NS   ||    | VrSrc | S-Vr | Vr ||       | RE||SV_B | S-Dif | Dif     | CRC                      |
-|-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|--------------------------|
-| 10011 | 001 || 0  | 1      | 000 | 1    | 00||00001001 || 1    | 0010100||000 | 0     | 1    | 000||001110 | 00||     | 0     | 0010111 | 010110110010100001001111 |
+|  DATA        *+1                             *+2        *+3              *+4                       *+5          *+6                     |
+|-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|
+|  TC   | ST  || IC | RESV_A | NAC | S-EW | V-||EW       || S-NS | V-NS   ||    | VrSrc | S-Vr | Vr ||       | RE||SV_B | S-Dif | Dif     |
+|-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|
+| 10011 | 001 || 0  | 1      | 000 | 1    | 00||00001001 || 1    | 0010100||000 | 0     | 1    | 000||001110 | 00||     | 0     | 0010111 |
 */
 			uint8_t S_EW,S_NS,VrSrc,S_Vr,S_Dif, Dif;
 			uint16_t V_EW, V_NS, Vr;
@@ -465,7 +466,7 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
 			LOG("%s V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",aid[aidindex],V,h, S_Vr==0?'+':'-',Vr);
 		} else if(ST==3 || ST==4) { // subtype 3 or 4
 /*
-|  DATA       * +1                             *+2       *+3               *+4                      *+5                *+6               |
+|  DATA        *+1                             *+2        *+3              *+4                       *+5              *+6                |
 |-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|--------||-------|---------|
 |  TC   | ST  || IC | RESV_A | NAC | H-s  | Hdg          || AS-t | AS     ||    | VrSrc | S-Vr | Vr          | RESV_B || S-Dif | Dif     |
 |-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|--------||-------|---------|
