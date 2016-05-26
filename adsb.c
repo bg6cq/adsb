@@ -31,22 +31,8 @@ uint8_t hex2int(char *buf)
 /* speed to head_deg */
 float head_deg(float V_we, float V_sn)
 {	float h;
-	if(abs(V_sn)<0.01) {
-		if(V_we>=0) 
-			h = 90;
-		else h = 270;
-	}
-	if(V_sn>0) {
-		if(V_we>=0) 
-			h = atan(V_we/V_sn)*180/3.1415926;
-		else
-			h = 360.0 - atan(-V_we/V_sn)*180/3.1415926;
-	} else {
-		if(V_we>=0) 
-			h = 180.0 - atan(-V_we/V_sn)*180/3.1415926;
-		else
-			h = 180.0 + atan(V_we/V_sn)*180/3.1415926;
-	}
+	h = atan2(V_we, V_sn)*180.0/3.1415926;
+	if(h<0) h+=360;
 	return h;
 }
 
@@ -131,23 +117,33 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d\n",DF,CA,ICAO24,TC);
 		aid[8]=0;	
 		LOG("aid=%s\n\n",aid);
 	} else if((TC>=9) && (TC<=18)) {		// Airborne Positions
+/*
+ | DATA               *+1        *+2                *+3       *+4          *+5       +6         |
+ | TC    | SS | NICsb || ALT     ||     | T | F | LA||T-CPR   ||        | L||ON-CPR  ||         |
+-|-------|----|-------||---------||-----|---|---|---||--------||--------|--||--------||---------|
+ | 01011 | 00 | 0     || 11000011||1000 | 0 | 0 | 10||11010110||1001000 | 0||11001000||10101100 |
+ | 01011 | 00 | 0     || 11000011||1000 | 0 | 1 | 10||01000011||0101110 | 0||11000100||00010010 |
+https://github.com/etabbone/01.ADSB_BSBv6_UPS/blob/master/dump1090/mode_s.c
+*/
 		uint8_t F;
+		static char lastICAO[7];
+		static lastF;
+		uint16_t ALT;
+		static uint32_t LAT_CPR_E, LAT_CPR_O, LON_CPR_E, LON_CPR_O;
 		F = (*(DATA+2) >> 2) & 1;
 		LOG("F=%d\n\n",F);
 	} else if(TC==19) {		// Airborne Velocity
+		uint8_t ST;
+		ST = *DATA & 0x7;
+		LOG("ST=%d ",ST);
+		if(ST==1 || ST==2) { // subtype 1 or 2
 /*
-                                                                                                                                                                      
 |  DATA       *   +1                          * +2       * +3             *+4                       *+5            * +6                   | CRC                      |
 |-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|--------------------------|
 |  TC   | ST  || IC | RESV_A | NAC | S-EW | V-||EW       || S-NS | V-NS   ||    | VrSrc | S-Vr | Vr ||       | RE||SV_B | S-Dif | Dif     | CRC                      |
 |-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|--------------------------|
 | 10011 | 001 || 0  | 1      | 000 | 1    | 00||00001001 || 1    | 0010100||000 | 0     | 1    | 000||001110 | 00||     | 0     | 0010111 | 010110110010100001001111 |
 */
-
-		uint8_t ST;
-		ST = *DATA & 0x7;
-		LOG("ST=%d\n",ST);
-		if(ST==1 || ST==2) { // subtype 1 or 2
 			uint8_t S_EW,S_NS,VrSrc,S_Vr,S_Dif, Dif;
 			uint16_t V_EW, V_NS, Vr;
 			float V_we, V_sn ,V,h;
