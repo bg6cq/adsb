@@ -3,6 +3,7 @@
 thanks to:
 http://adsb-decode-guide.readthedocs.io
 https://github.com/etabbone/01.ADSB_BSBv6_UPS
+http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 
 */
 
