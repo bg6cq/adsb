@@ -498,6 +498,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 int main(int argc, char *argv[])
 {	char buf[MAXLEN];
 
+#if 0
 //	tast data ICAO been changed, CRC not corrected
 //	test data aid from http://adsb-decode-guide.readthedocs.io/en/latest/identification.html
 	decode_adsb("8D4840D6202CC371C32CE0576098");
@@ -511,7 +512,7 @@ int main(int argc, char *argv[])
 	decode_adsb("8D4840D7202CC381C32CE0576098");
 	decode_adsb("8D4840D7580FF2CF7E9BA6F701D0");
 	decode_adsb("8D4840D7580FF6B283EB7A157117");
-
+#endif
 	while(fgets(buf,MAXLEN,stdin)) {
 		if(buf[0]!='*') 
 			continue;
