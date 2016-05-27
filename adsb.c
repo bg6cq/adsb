@@ -25,31 +25,32 @@ char icaos[MAXID][7];
 char aid[MAXID][9];
 time_t aidtm[MAXID];
 
-// 最近10秒的位置信息包
-char cpricaos[MAXID][7];
-time_t utm[MAXID];
-uint32_t LAT_CPR_EVEN[MAXID];
-uint32_t LON_CPR_EVEN[MAXID];
+// 最近10秒的CPR位置信息包
+char cpricaos[MAXID*2][7];
+time_t utm[MAXID*2];
+uint32_t LAT_CPR_EVEN[MAXID*2];
+uint32_t LON_CPR_EVEN[MAXID*2];
+int Fbit[MAXID*2];
 
 // 保存icao对应的aid,最多保留100秒
 void save_aid(char *ICAO, char *AID)
 {	int i;
-	time_t ctm=time(NULL);
-	for(i=0;i<MAXID;i++) {
-		if( icaos[i][0] == 0 ) // i位置为空，可以存
+	time_t ctm = time(NULL);
+	for(i=0; i<MAXID; i++) {
+		if(icaos[i][0] == 0) // i位置为空，可以存
 			break;
-		if( ctm-aidtm[i] > 100 )  // i 位置的数据太老，可以覆盖
+		if(ctm-aidtm[i] > 100)  // i 位置的数据太老，可以覆盖
 			break;
-		if( strcmp(icaos[i],ICAO)==0 ) // i 位置存放的是之前的信息，可以覆盖
+		if(strcmp(icaos[i],ICAO) == 0) // i 位置存放的是之前的信息，可以覆盖
 			break;
 	}
-	if(i==MAXID) { // 满了，不存
+	if(i == MAXID) { // 满了，不存
 		LOG("WARN: Too Many Aircraft to track\n");
 		return;
 	}
 	strcpy(icaos[i], ICAO);
 	strcpy(aid[i], AID);
-	aidtm[i]=ctm;
+	aidtm[i] = ctm;
 #ifdef	MOREDEBUG
 	LOG("save %s:%s in %d\n", ICAO, AID, i);
 #endif
@@ -57,12 +58,12 @@ void save_aid(char *ICAO, char *AID)
 
 // 根据ICAO 找出AID索引
 int find_aid(char *ICAO)
-{	int found=0,i;
-	time_t ctm=time(NULL);
-	for(i=0;i<MAXID;i++) {
-		if( icaos[i][0] == 0 ) // i位置为空，没找到
+{	int found = 0, i;
+	time_t ctm = time(NULL);
+	for(i=0; i<MAXID; i++) {
+		if(icaos[i][0] == 0) // i位置为空，没找到
 			break;
-		if( strcmp(icaos[i], ICAO)==0) { // 找到了
+		if(strcmp(icaos[i], ICAO) == 0) { // 找到了
 			found = 1;
 			break;
 		}
@@ -75,49 +76,50 @@ int find_aid(char *ICAO)
 	return i;
 }
 
-// 保存F=0的CPR，以备后续F=1的CPR计算位置
+// 保存最新收到的CPR，以备后续CPR计算位置
 // 信息保存10秒
-void save_even_cpr(char *ICAO, uint32_t lat, uint32_t lon)
+void save_cpr(char *ICAO, int F, uint32_t lat, uint32_t lon)
 {	int i;
-	time_t ctm=time(NULL);
-	for(i=0;i<MAXID;i++) {
-		if( cpricaos[i][0] == 0 ) // i位置为空，可以存
+	time_t ctm = time(NULL);
+	for(i=0; i<MAXID*2; i++) {
+		if(cpricaos[i][0] == 0) // i位置为空，可以存
 			break;
-		if( ctm-utm[i] > 10 )  // i 位置的数据太老，可以覆盖
+		if(ctm-utm[i] > 10)  // i 位置的数据太老，可以覆盖
 			break;
-		if( strcmp(cpricaos[i],ICAO)==0 ) // i 位置存放的是之前的信息，可以覆盖
+		if((Fbit[i] == F) && (strcmp(cpricaos[i], ICAO) == 0)) // i 位置存放的是之前的信息，可以覆盖
 			break;
 	}
-	if(i==MAXID) { // 满了，不存
+	if(i == MAXID*2) { // 满了，不存
 #ifdef	MOREDEBUG
 		LOG("Too Many Aircraft to track\n");
 #endif
 		return;
 	}
 	strcpy(cpricaos[i], ICAO);
-	LAT_CPR_EVEN[i]= lat;
-	LON_CPR_EVEN[i]= lon;
-	utm[i]=ctm;
+	LAT_CPR_EVEN[i] = lat;
+	LON_CPR_EVEN[i] = lon;
+	utm[i] = ctm;
+	Fbit[i] = F;
 #ifdef	MOREDEBUG
 	LOG("save %s in %d\n", ICAO, i);
 #endif
 }
 
-// 取回最近的F=0 CPR信息, 找不到返回0
-int find_even_cpr(char *ICAO, uint32_t *lat, uint32_t *lon) 
-{	int found=0, i;
-	time_t ctm=time(NULL);
-	for(i=0;i<MAXID;i++) {
-		if( cpricaos[i][0] == 0 ) // i位置为空，没找到
+// 取回最近的CPR信息, 找不到返回0
+int find_cpr(char *ICAO, int F, uint32_t *lat, uint32_t *lon) 
+{	int found = 0, i;
+	time_t ctm = time(NULL);
+	for(i=0; i<MAXID*2; i++ ) {
+		if(cpricaos[i][0] == 0) // i位置为空，没找到
 			break;
-		if( strcmp(cpricaos[i], ICAO)==0) { // 找到了
+		if((Fbit[i] == F)&& (strcmp(cpricaos[i], ICAO) == 0 )) { // 找到了
 			found = 1;
 			break;
 		}
 	}
 	if(!found) 
 		return 0;
-	if( ctm-utm[i] > 10 )  // i 位置的数据太老, 相当于没找到
+	if(ctm-utm[i] > 10)  // i 位置的数据太老, 相当于没找到
 		return 0;
 	*lat = LAT_CPR_EVEN[i];
 	*lon = LON_CPR_EVEN[i];
@@ -231,10 +233,8 @@ double cprDlonFunction(double lat, int fflag) {
 //    simplicity. This may provide a position that is less fresh of a few
 //    seconds.
 //
-void DecodeCPR(char *ICAO, uint32_t LAT_CPR_E, uint32_t LON_CPR_E, uint32_t LAT_CPR_O, uint32_t LON_CPR_O, uint16_t ALT, int aidindex)
+void DecodeCPR(char *ICAO, uint32_t LAT_CPR_E, uint32_t LON_CPR_E, uint32_t LAT_CPR_O, uint32_t LON_CPR_O, uint16_t ALT, int aidindex, int fflag)
 {
-
-    	int fflag = 1; // 猜测原程序的参数
 	int qbit = (ALT>>4)&1;
 	ALT = ((ALT>>5)<<4) +  (ALT&0xf);
 	uint32_t alt = ALT * ( qbit ? 25: 100) -1000;
@@ -316,8 +316,7 @@ float head_deg(float V_we, float V_sn)
 	return h;
 }
 
-/* 
-http://adsb-decode-guide.readthedocs.io/en/latest/introduction.html
+/* http://adsb-decode-guide.readthedocs.io/en/latest/introduction.html
    decode hex "8D4840D6202CC371C32CE0576098" 28 byte message
    to DF,CA,ICAO24,DATA,PC 
 */
@@ -327,11 +326,11 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 {
 	int i;
 	uint8_t t;
-	if(strlen(buf)!=28) {
+	if(strlen(buf) != 28) {
 		LOG("WARN: msg %s len!=28\n",buf);
 		return 0;
 	}
-	for(i=0;i<28;i++) {
+	for(i=0; i<28; i++) {
 		if( isxdigit(buf[i])) continue;
 		LOG("ERROR: msg %s:%d %c is not a hex\n",buf,i,buf[i]);
 		return 0;
@@ -361,10 +360,8 @@ char aidcharset[]="#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789###
 
 void decode_adsb(uint8_t *buf)
 {
-	uint8_t DF, CA, TC;
+	uint8_t DF, CA, TC, ICAO24[7], DATA[8];
 	uint32_t PC;
-	uint8_t ICAO24[7];
-	uint8_t DATA[8];
 	decode_adsb_outer_layer(buf, &DF, &CA, ICAO24, DATA, &TC, &PC);
 #ifdef	MOREDEBUG
 LOG("msg: %s\n",buf);
@@ -388,7 +385,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 		aid[6] = aidcharset[(t>>6)&0x3f];
 		aid[7] = aidcharset[(t)&0x3f];
 		aid[8]=0;	
-		save_aid(ICAO24,aid);
+		save_aid(ICAO24, aid);
 #ifdef MOREDEBUG
 		LOG("aid=%s\n",aid);
 #endif
@@ -415,13 +412,17 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 		if(F==0) { // F=0 时，保存 CPR信息 
 			LAT_CPR_E = ((*(DATA+2)&0x3)<<15) + (*(DATA+3)<<7) + (*(DATA+4)>>1);
 			LON_CPR_E = ((*(DATA+4)&1)<<16) + (*(DATA+5)<<8) + *(DATA+6);
-			save_even_cpr(ICAO24, LAT_CPR_E, LON_CPR_E);
+			save_cpr(ICAO24, F, LAT_CPR_E, LON_CPR_E);
+			if(find_cpr(ICAO24, 1, &LAT_CPR_O, &LON_CPR_O)) {
+				DecodeCPR(ICAO24, LAT_CPR_E, LON_CPR_E, LAT_CPR_O, LON_CPR_O, ALT, aidindex, 0);
+			}
 		} else { // F=1 时，取得保存的CPR信息一起计算位置	
 			ALT = (*(DATA+1)<<4) + (*(DATA+2)>>4);
 			LAT_CPR_O = ((*(DATA+2)&0x3)<<15) + (*(DATA+3)<<7) + (*(DATA+4)>>1);
 			LON_CPR_O = ((*(DATA+4)&1)<<16) + (*(DATA+5)<<8) + *(DATA+6);
-			if(find_even_cpr(ICAO24,&LAT_CPR_E,&LON_CPR_E)) {
-				DecodeCPR(ICAO24, LAT_CPR_E, LON_CPR_E, LAT_CPR_O, LON_CPR_O, ALT, aidindex);
+			save_cpr(ICAO24, F, LAT_CPR_O, LON_CPR_O);
+			if(find_cpr(ICAO24, 0, &LAT_CPR_E, &LON_CPR_E)) {
+				DecodeCPR(ICAO24, LAT_CPR_E, LON_CPR_E, LAT_CPR_O, LON_CPR_O, ALT, aidindex, 1);
 			}
 		}
 	} else if(TC==19) {			// Airborne Velocity
@@ -441,9 +442,9 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 |-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|---||-----|-------|---------|
 | 10011 | 001 || 0  | 1      | 000 | 1    | 00||00001001 || 1    | 0010100||000 | 0     | 1    | 000||001110 | 00||     | 0     | 0010111 |
 */
-			uint8_t S_EW,S_NS,VrSrc,S_Vr,S_Dif, Dif;
+			uint8_t S_EW, S_NS, VrSrc, S_Vr, S_Dif, Dif;
 			uint16_t V_EW, V_NS, Vr;
-			float V_we, V_sn ,V,h;
+			float V_we, V_sn , V, h;
 			S_EW = (*(DATA+1)>>2)&1;
 			V_EW = ((*(DATA+1)&0x3)<<8) + *(DATA+2);
 			S_NS = (*(DATA+3)>>7);
@@ -463,7 +464,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			h = head_deg(V_we, V_sn);
 			
 		//	LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
-			LOG("%s V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",aid[aidindex],V,h, S_Vr==0?'+':'-',Vr);
+			LOG("%s V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n" ,aid[aidindex], V, h, S_Vr==0?'+':'-', Vr);
 		} else if(ST==3 || ST==4) { // subtype 3 or 4
 /*
 |  DATA        *+1                             *+2        *+3              *+4                       *+5              *+6                |
@@ -472,7 +473,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 |-------|-----||----|--------|-----|------|---||---------||------|--------||----|-------|------|----||-------|--------||-------|---------|
 | 10011 | 011 || 0  | 0      | 000 | 1    | 10||10110110 || 1    | 0101111||000 | 1     | 1    | 000||100101 | 00     || 0     | 0000000 |
 */
-			uint8_t H_S, AS_t, VrSrc,S_Vr,S_Dif, Dif;
+			uint8_t H_S, AS_t, VrSrc, S_Vr, S_Dif, Dif;
 			uint16_t Hdg, AS, Vr;
 			float V_we, V_sn ,V,h;
 			H_S = (*(DATA+1)>>2)&1;
@@ -486,27 +487,31 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			Dif = *(DATA+6) & 0x7F;
 			if(H_S)
 				h = Hdg/1024.0*360.0;
-			LOG("%s V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n",aid[aidindex], AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-',Vr);
+			LOG("%s V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n", aid[aidindex], AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-', Vr);
 		}
 	}
 }
 
 
 
-main(int argc, char *argv[])
-{	FILE *fp;
-	char buf[MAXLEN];
-	int i;
-/*
+int main(int argc, char *argv[])
+{	char buf[MAXLEN];
+
+//	tast data ICAO been changed, CRC not corrected
+//	test data aid from http://adsb-decode-guide.readthedocs.io/en/latest/identification.html
 	decode_adsb("8D4840D6202CC371C32CE0576098");
-	decode_adsb("8D4840D658C382D690C8AC2863A7");
+// 	test data postion from http://adsb-decode-guide.readthedocs.io/en/latest/position.html
 	decode_adsb("8D4840D658C386435CC412692AD6");
-	decode_adsb("8D485020994409940838175B284F");
-	decode_adsb("8DA05F219B06B6AF189400CBC33F");
-*/
-	fp = fopen("adsb.txt","r");
-	i=0;
-	while(fgets(buf,MAXLEN,fp)) {
+	decode_adsb("8D4840D658C382D690C8AC2863A7");
+//	test data Velocity from http://adsb-decode-guide.readthedocs.io/en/latest/position.html
+	decode_adsb("8D4840D6994409940838175B284F");
+	decode_adsb("8D4840D69B06B6AF189400CBC33F");
+//	test data postion from http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
+	decode_adsb("8D4840D7202CC381C32CE0576098");
+	decode_adsb("8D4840D7580FF2CF7E9BA6F701D0");
+	decode_adsb("8D4840D7580FF6B283EB7A157117");
+
+	while(fgets(buf,MAXLEN,stdin)) {
 		if(buf[0]!='*') 
 			continue;
 		if(strlen(buf+1)<28)
@@ -516,5 +521,5 @@ main(int argc, char *argv[])
 			decode_adsb(buf+1);
 		}
 	}
-	
+	return 0;
 }
