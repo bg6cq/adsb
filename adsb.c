@@ -12,6 +12,7 @@ http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 //#define MOREDEBUG 1
 
@@ -549,6 +550,33 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 }
 
 
+void Log(char *s)
+{
+        time_t t;
+	static FILE *fp;
+        static time_t last_t=0;
+        static int tm_hour, tm_min, tm_sec;
+        time(&t);
+        if ( t != last_t ) {
+                static int lastday = 0;
+                struct tm *ctm;
+                last_t = t;
+                ctm = localtime(&t);
+                tm_hour = ctm->tm_hour;
+                tm_min = ctm->tm_min;
+                tm_sec = ctm->tm_sec;
+                if( ctm->tm_mday != lastday)  {
+        		char fnbuf[MAXLEN];
+        		if(fp) fclose(fp);
+        		snprintf(fnbuf,MAXLEN,"/var/log/adsb/%04d.%02d.%02d.log",
+                		ctm->tm_year+1900, ctm->tm_mon+1, ctm->tm_mday);
+        		fp = fopen(fnbuf,"a");
+                        lastday = ctm->tm_mday;
+                }
+        }
+        if(fp) 
+		fprintf(fp,"%02d:%02d:%02d %s", tm_hour, tm_min, tm_sec, s);
+}
 
 int main(int argc, char *argv[])
 {	char buf[MAXLEN];
@@ -570,6 +598,7 @@ int main(int argc, char *argv[])
 #endif
 	mysql=connectdb();
 	while(fgets(buf,MAXLEN,stdin)) {
+		Log(buf);
 		if(buf[0]!='*') 
 			continue;
 		if(strlen(buf+1)<28)

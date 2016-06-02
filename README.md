@@ -11,6 +11,7 @@ ln -s /usr/src/adsb/web /var/www/html/addsb
 
 
 使用方法：
+mkdir /var/log/adsb     用来保存收到的数据包
 X.X.X.X 是运行dump1090的机器，设置为avr输出
 nc X.X.X.X 31001 | ./adsb 
 
