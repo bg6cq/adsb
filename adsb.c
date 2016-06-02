@@ -29,8 +29,8 @@ time_t aidtm[MAXID];
 // 最近10秒的CPR位置信息包
 char cpricaos[MAXID*2][7];
 time_t utm[MAXID*2];
-uint32_t LAT_CPR_EVEN[MAXID*2];
-uint32_t LON_CPR_EVEN[MAXID*2];
+uint32_t LAT_CPR[MAXID*2];
+uint32_t LON_CPR[MAXID*2];
 int Fbit[MAXID*2];
 
 // 保存icao对应的aid,最多保留100秒
@@ -97,8 +97,8 @@ void save_cpr(char *ICAO, int F, uint32_t lat, uint32_t lon)
 		return;
 	}
 	strcpy(cpricaos[i], ICAO);
-	LAT_CPR_EVEN[i] = lat;
-	LON_CPR_EVEN[i] = lon;
+	LAT_CPR[i] = lat;
+	LON_CPR[i] = lon;
 	utm[i] = ctm;
 	Fbit[i] = F;
 #ifdef	MOREDEBUG
@@ -122,10 +122,10 @@ int find_cpr(char *ICAO, int F, uint32_t *lat, uint32_t *lon)
 		return 0;
 	if(ctm-utm[i] > 10)  // i 位置的数据太老, 相当于没找到
 		return 0;
-	*lat = LAT_CPR_EVEN[i];
-	*lon = LON_CPR_EVEN[i];
+	*lat = LAT_CPR[i];
+	*lon = LON_CPR[i];
 #ifdef	MOREDEBUG
-	LOG("found CPR_EVEN %s in %d\n", ICAO, i);
+	LOG("found CPR %s in %d\n", ICAO, i);
 #endif
 	return 1;
 }
@@ -369,7 +369,7 @@ LOG("msg: %s\n",buf);
 LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 #endif
 	if(DF!=17) {
-		LOG("ERROR: I only know DF=17\n");
+		LOG("ERROR: DF=%d buf I only know DF=17\n",DF);
 		return;
 	}
 	if((TC>=1) && (TC<=4)) {		// Aircraft Identification
