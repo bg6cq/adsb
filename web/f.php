@@ -44,7 +44,7 @@ function urlmessage($aid,$icao, $alt, $speed, $h, $vr , $icon, $dtmstr) {
         $m =$m."轨迹";
         $m = $m."<a href=".$_SERVER["PHP_SELF"]."?gpx=".$aid." target=_blank>GPX</a> ";
         $m = $m."<a href=".$_SERVER["PHP_SELF"]."?kml=".$aid." target=_blank>KML</a> <hr color=green>".$dtmstr."<br>";
-        $m = $m."<b> 海拔".$alt."ft<br>速度".$speed."kn/".$h."° <br>爬升".$vr."ft/min</b><br>";
+        $m = $m."<b>海拔 ".$alt."ft<br>速度 ".$speed."kn/".$h."° <br>爬升 ".$vr."ft/min</b><br>";
         $m = $m."</font>";
         return $m;
 }
@@ -74,7 +74,7 @@ if ($cmd=="tm") {
 			$lon = $p->getX();
 			$lat = $p->getY();
 		} 
-		$icon = "img/2f5e.png";
+		$icon = "img/".$h.".png";
                 $dmsg = urlmessage($aid, $icao, $alt,$speed,$h,$vr,$icon,$dtmstr);
                 echo "setstation(".$lon.",".$lat.",\"".$aid."\",".$dtm.",\"".$icon."\",\n\"".$dmsg."\");\n";
 	}
@@ -95,6 +95,7 @@ if ($cmd=="tm") {
 		if(isset($lon)) 
 			echo "map.centerAndZoom(new BMap.Point($lon,$lat),12);\n";
 	}
+	echo "deleteoldstation($dtm, 600);\n";
 	exit(0);
 }
 
@@ -124,6 +125,7 @@ var infowindows = {};
 var lasttm=0;
 var movepaths = {};
 var polylines = {};
+var movepoints = {};
 
 var colors = ["#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
 var colorindex = 0;
@@ -136,14 +138,14 @@ function getcolor(){
 	return c;
 }
 function updatecalls(calls) {
-	console.log("calls:"+calls);
+	// console.log("calls:"+calls);
 }
 function updatepkts(pkts) {
-	console.log("pkts:"+pkts);
+	// console.log("pkts:"+pkts);
 }
 
-function addp(lon,lat,msg) {
-	var icon = new BMap.Icon("/p.png", new BMap.Size(3, 3));	
+function addp(aid,lon,lat,msg) {
+	var icon = new BMap.Icon("p.png", new BMap.Size(3, 3));	
 	var m = new BMap.Marker(new BMap.Point(lon,lat), {icon: icon});
 	var infowindow = new BMap.InfoWindow(msg, {width:300});
 	(function(){
@@ -152,8 +154,27 @@ function addp(lon,lat,msg) {
         	});
 	})();
 	map.addOverlay(m);
+	return m;
 }
 
+function deleteoldstation(tm, oldtime)
+{	for ( aid in lasttms ) {
+		if( lasttms[aid] < tm - oldtime) {  // too old, delete it
+			console.log(aid);	
+			map.removeOverlay(polylines[aid]);
+			delete polylines[aid];
+			map.removeOverlay(markers[aid]);
+			delete markers[aid];
+			delete infowindows[aid];
+			delete iconurls[aid];
+			delete movepaths[aid];
+			delete lasttms[aid];
+			for(i=0;i<movepoints[aid].length;i++) 
+				map.removeOverlay(movepoints[aid][i]);
+			delete movepoints[aid];
+		}
+	}
+}
 function setstation(lon, lat, label, tm, iconurl, msg)
 {	
 	if(markers.hasOwnProperty(label)) {   // call已经存在
@@ -171,7 +192,8 @@ function setstation(lon, lat, label, tm, iconurl, msg)
 		var p = new BMap.Point(lon,lat);
 		movepaths[label].push (p);
 		polylines[label].setPath(movepaths[label]);
-		addp(lon,lat,msg);
+		m = addp(label,lon,lat,msg);
+		movepoints[label].push(m);
 		return;
 	}
 	// 新call
@@ -199,7 +221,9 @@ function setstation(lon, lat, label, tm, iconurl, msg)
 	polylines[label] = new Array();
 	polylines[label] = new BMap.Polyline(movepaths[label],{strokeColor:getcolor(), strokeWeight:4, strokeOpacity:0.9});
 	map.addOverlay(polylines[label]);
-	addp(lon,lat,msg);
+	m = addp(label,lon,lat,msg);
+	movepoints[label] = new Array();
+	movepoints[label].push(m);
 }
 
 var xmlHttpRequest;     //XmlHttpRequest对象     

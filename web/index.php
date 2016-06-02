@@ -75,7 +75,7 @@ function urlmessage($aid,$icao, $alt, $speed, $h, $vr , $icon, $dtmstr) {
 	$m =$m."轨迹";
 	$m = $m."<a href=".$_SERVER["PHP_SELF"]."?gpx=".$aid." target=_blank>GPX</a> ";
 	$m = $m."<a href=".$_SERVER["PHP_SELF"]."?kml=".$aid." target=_blank>KML</a> <hr color=green>".$dtmstr."<br>";
-	$m = $m."<b> 海拔".$alt."ft<br>速度".$speed."kn/".$h."° <br>爬升".$vr."ft/min</b><br>";
+	$m = $m."<b> 海拔 ".$alt."ft<br>速度 ".$speed."kn/".$h."° <br>爬升 ".$vr."ft/min</b><br>";
 	$m = $m."</font>";
 	return $m;	
 }
