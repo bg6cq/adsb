@@ -1,5 +1,6 @@
 all: adsb
 
-adsb: adsb.c
-	gcc -g -o adsb adsb.c -lm
+adsb: adsb.c db.h
+	gcc -g -o adsb adsb.c -lm  -lmysqlclient -L/usr/lib64/mysql/
+
 

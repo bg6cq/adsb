@@ -18,6 +18,7 @@ http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 #define LOG printf
 
 #define MAXLEN 16384
+
 // max number of airbornes to track
 #define MAXID 	100
 
@@ -25,6 +26,13 @@ http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 char icaos[MAXID][7];
 char aid[MAXID][9];
 time_t aidtm[MAXID];
+float alat[MAXID];
+float alon[MAXID];
+int aalt[MAXID];
+float aspeed[MAXID];
+int ah[MAXID];
+int avr[MAXID];
+
 
 // 最近10秒的CPR位置信息包
 char cpricaos[MAXID*2][7];
@@ -33,15 +41,42 @@ uint32_t LAT_CPR[MAXID*2];
 uint32_t LON_CPR[MAXID*2];
 int Fbit[MAXID*2];
 
+#include "db.h"
+
+void save_mysql(int i)
+{
+	char sqlbuf[MAXLEN];
+	int l;
+	l = snprintf(sqlbuf,MAXLEN,"INSERT INTO aircraftlog VALUES(now(),'%s','%s',%f,%f,%d,%f,%d,%d)",
+		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
+	LOG(sqlbuf);
+	LOG("\n");
+	if (mysql_real_query(mysql,sqlbuf,l)) {
+                        err_quit(mysql_error(mysql));
+        }
+	l = snprintf(sqlbuf,MAXLEN,"REPLACE INTO aircraftlast VALUES(now(),'%s','%s',%f,%f,%d,%f,%d,%d)",
+		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
+	LOG(sqlbuf);
+	LOG("\n");
+	if (mysql_real_query(mysql,sqlbuf,l)) {
+                        err_quit(mysql_error(mysql));
+        }
+}
+
 // 保存icao对应的aid,最多保留100秒
 void save_aid(char *ICAO, char *AID)
 {	int i;
+	int newentry=0;
 	time_t ctm = time(NULL);
 	for(i=0; i<MAXID; i++) {
-		if(icaos[i][0] == 0) // i位置为空，可以存
+		if(icaos[i][0] == 0){ // i位置为空，可以存
+			newentry = 1;
 			break;
-		if(ctm-aidtm[i] > 100)  // i 位置的数据太老，可以覆盖
+		}
+		if(ctm-aidtm[i] > 100) { // i 位置的数据太老，可以覆盖
+			newentry = 1;
 			break;
+		}
 		if(strcmp(icaos[i],ICAO) == 0) // i 位置存放的是之前的信息，可以覆盖
 			break;
 	}
@@ -49,9 +84,17 @@ void save_aid(char *ICAO, char *AID)
 		LOG("WARN: Too Many Aircraft to track\n");
 		return;
 	}
-	strcpy(icaos[i], ICAO);
-	strcpy(aid[i], AID);
 	aidtm[i] = ctm;
+	strcpy(aid[i], AID);
+	if(newentry) {
+		strcpy(icaos[i], ICAO);
+		alat[i]=0;
+		alon[i]=0;
+		aspeed[i]=0;
+		ah[i]=0;
+		aalt[i]=0;
+		avr[i]=0;
+	}
 #ifdef	MOREDEBUG
 	LOG("save %s:%s in %d\n", ICAO, AID, i);
 #endif
@@ -287,7 +330,11 @@ LOG("Lat_EVEN = %f Lat_ODD = %f ", rlat0, rlat1);
     if (lon >= 180) {
         	lon -= 360;
     }
-LOG("%s Lat:%f Lon:%f Alt:%d(ft)\n", aid[aidindex], lat, lon, alt);
+    alat[aidindex] = lat;
+	alon[aidindex] = lon;
+	aalt[aidindex]=alt;
+LOG("%s Lat:%f Lon:%f Alt:%d(ft) V=%f(kn) H=%d VR=%d(ft/min)\n", aid[aidindex], lat, lon, alt, aspeed[aidindex], ah[aidindex], avr[aidindex]);
+	save_mysql(aidindex);
 }
 
 /* convert 2 byte hex to int8, such as
@@ -385,7 +432,9 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 		aid[5] = aidcharset[(t>>12)&0x3f];
 		aid[6] = aidcharset[(t>>6)&0x3f];
 		aid[7] = aidcharset[(t)&0x3f];
-		aid[8]=0;	
+		aid[8]=0;
+		for(t=0;t<8;t++)		// strip last _
+			if(aid[t]=='_') aid[t]=0;	
 		save_aid(ICAO24, aid);
 #ifdef MOREDEBUG
 		LOG("aid=%s\n",aid);
@@ -465,7 +514,10 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			h = head_deg(V_we, V_sn);
 			
 		//	LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
-			LOG("%s V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n" ,aid[aidindex], V, h, S_Vr==0?'+':'-', Vr);
+	//		LOG("%s V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n" ,aid[aidindex], V, h, S_Vr==0?'+':'-', Vr);
+			aspeed[aidindex]=V;
+			ah[aidindex]=round(h);
+			avr[aidindex] = (S_Vr==0?Vr:-Vr);
 		} else if(ST==3 || ST==4) { // subtype 3 or 4
 /*
 |  DATA        *+1                             *+2        *+3              *+4                       *+5              *+6                |
@@ -488,7 +540,10 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			Dif = *(DATA+6) & 0x7F;
 			if(H_S)
 				h = Hdg/1024.0*360.0;
-			LOG("%s V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n", aid[aidindex], AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-', Vr);
+			// LOG("%s V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n", aid[aidindex], AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-', Vr);
+			aspeed[aidindex]=AS;
+			ah[aidindex] = round(h);
+			avr[aidindex] = (S_Vr==0?AS:-AS);
 		}
 	}
 }
@@ -513,6 +568,7 @@ int main(int argc, char *argv[])
 	decode_adsb("8D4840D7580FF2CF7E9BA6F701D0");
 	decode_adsb("8D4840D7580FF6B283EB7A157117");
 #endif
+	mysql=connectdb();
 	while(fgets(buf,MAXLEN,stdin)) {
 		if(buf[0]!='*') 
 			continue;
