@@ -331,9 +331,10 @@ LOG("Lat_EVEN = %f Lat_ODD = %f ", rlat0, rlat1);
     if (lon >= 180) {
         	lon -= 360;
     }
-    alat[aidindex] = lat;
+
+    	alat[aidindex] = lat;
 	alon[aidindex] = lon;
-	aalt[aidindex]=alt;
+	aalt[aidindex] = alt;
 LOG("%s Lat:%f Lon:%f Alt:%d(ft) V=%.0f(kn) H=%d VR=%d(ft/min)\n", aid[aidindex], lat, lon, alt, aspeed[aidindex], ah[aidindex], avr[aidindex]);
 	save_mysql(aidindex);
 }
@@ -365,6 +366,94 @@ float head_deg(float V_we, float V_sn)
 	return h;
 }
 
+// ===================== Mode S detection and decoding  ===================
+//
+// Parity table for MODE S Messages.
+// The table contains 112 elements, every element corresponds to a bit set
+// in the message, starting from the first bit of actual data after the
+// preamble.
+//
+// For messages of 112 bit, the whole table is used.
+// For messages of 56 bits only the last 56 elements are used.
+//
+// The algorithm is as simple as xoring all the elements in this table
+// for which the corresponding bit on the message is set to 1.
+//
+// The latest 24 elements in this table are set to 0 as the checksum at the
+// end of the message should not affect the computation.
+//
+// Note: this function can be used with DF11 and DF17, other modes have
+// the CRC xored with the sender address as they are reply to interrogations,
+// but a casual listener can't split the address from the checksum.
+//
+uint32_t modes_checksum_table[112] = {
+0x3935ea, 0x1c9af5, 0xf1b77e, 0x78dbbf, 0xc397db, 0x9e31e9, 0xb0e2f0, 0x587178,
+0x2c38bc, 0x161c5e, 0x0b0e2f, 0xfa7d13, 0x82c48d, 0xbe9842, 0x5f4c21, 0xd05c14,
+0x682e0a, 0x341705, 0xe5f186, 0x72f8c3, 0xc68665, 0x9cb936, 0x4e5c9b, 0xd8d449,
+0x939020, 0x49c810, 0x24e408, 0x127204, 0x093902, 0x049c81, 0xfdb444, 0x7eda22,
+0x3f6d11, 0xe04c8c, 0x702646, 0x381323, 0xe3f395, 0x8e03ce, 0x4701e7, 0xdc7af7,
+0x91c77f, 0xb719bb, 0xa476d9, 0xadc168, 0x56e0b4, 0x2b705a, 0x15b82d, 0xf52612,
+0x7a9309, 0xc2b380, 0x6159c0, 0x30ace0, 0x185670, 0x0c2b38, 0x06159c, 0x030ace,
+0x018567, 0xff38b7, 0x80665f, 0xbfc92b, 0xa01e91, 0xaff54c, 0x57faa6, 0x2bfd53,
+0xea04ad, 0x8af852, 0x457c29, 0xdd4410, 0x6ea208, 0x375104, 0x1ba882, 0x0dd441,
+0xf91024, 0x7c8812, 0x3e4409, 0xe0d800, 0x706c00, 0x383600, 0x1c1b00, 0x0e0d80,
+0x0706c0, 0x038360, 0x01c1b0, 0x00e0d8, 0x00706c, 0x003836, 0x001c1b, 0xfff409,
+0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000,
+0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000, 0x000000
+};
+
+uint32_t modesChecksum(unsigned char *msg, int bits) {
+    uint32_t   crc = 0;
+    uint32_t   rem = 0;
+    int        offset = (bits == 112) ? 0 : (112-56);
+    uint8_t    theByte = *msg;
+    uint32_t * pCRCTable = &modes_checksum_table[offset];
+    int j;
+
+    // We don't really need to include the checksum itself
+    bits -= 24;
+    for(j = 0; j < bits; j++) {
+        if ((j & 7) == 0)
+            theByte = *msg++;
+
+        // If bit is set, xor with corresponding table entry.
+        if (theByte & 0x80) {crc ^= *pCRCTable;} 
+        pCRCTable++;
+        theByte = theByte << 1; 
+    }
+
+    rem = (msg[0] << 16) | (msg[1] << 8) | msg[2]; // message checksum
+    return ((crc ^ rem) & 0x00FFFFFF); // 24 bit checksum syndrome.
+}
+
+//=========================================================================
+//
+// Try to fix single bit errors using the checksum. On success modifies
+// the original buffer with the fixed version, and returns the position
+// of the error bit. Otherwise if fixing failed -1 is returned.
+int fixSingleBitErrors(unsigned char *msg, int bits) {
+    int j;
+    unsigned char aux[14];
+    memcpy(aux, msg, bits/8);
+    // Do not attempt to error correct Bits 0-4. These contain the DF, and must
+    // be correct because we can only error correct DF17
+    for (j = 5; j < bits; j++) {
+        int byte    = j/8;
+        int bitmask = 1 << (7 - (j & 7));
+        aux[byte] ^= bitmask; // Flip j-th bit
+        if (0 == modesChecksum(aux, bits)) {
+            // The error is fixed. Overwrite the original buffer with the 
+            // corrected sequence, and returns the error bit position
+            msg[byte] = aux[byte];
+            return (j);
+        }
+        aux[byte] ^= bitmask; // Flip j-th bit back again
+    }
+    return (-1);
+}
+
+
 /* http://adsb-decode-guide.readthedocs.io/en/latest/introduction.html
    decode hex "8D4840D6202CC371C32CE0576098" 28 byte message
    to DF,CA,ICAO24,DATA,PC 
@@ -375,6 +464,7 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 {
 	int i;
 	uint8_t t;
+	uint8_t msg[14];
 	if(strlen(buf) != 28) {
 		LOG("WARN: msg %s len!=28\n",buf);
 		return 0;
@@ -384,12 +474,23 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 		LOG("ERROR: msg %s:%d %c is not a hex\n",buf,i,buf[i]);
 		return 0;
 	}
+	for(i=0; i<14; i++) 
+		msg[i] = hex2int(buf+i*2);
+	if(0!=modesChecksum(msg,112)) {
+		LOG("CRC error\n");
+		if(fixSingleBitErrors(msg,112)==-1) // still could not fix
+			return 0;
+		LOG("CRC 1bit error fixed\n");
+	}
+		
 	t = hex2int(buf);
 	*DF = t >> 3;
 	*CA = t & 0x7;
 	for(i=0;i<6;i++)
 		ICAO24[i]=*(buf+i+2);
 	ICAO24[6]=0;
+	memcpy(DATA,msg+4,7);
+/*
 	*DATA = hex2int(buf+8);
 	*(DATA+1) = hex2int(buf+10);
 	*(DATA+2) = hex2int(buf+12);
@@ -397,11 +498,14 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 	*(DATA+4) = hex2int(buf+16);
 	*(DATA+5) = hex2int(buf+18);
 	*(DATA+6) = hex2int(buf+20);
+*/
 	*(DATA+7) = 0;
 	*TC = (*DATA) >> 3;
+	*PC = msg[11]<<16+msg[12]<<8+msg[13];
+/*
 	*PC = hex2int(buf+22);
 	*PC = ( *PC << 8) + hex2int(buf+24);
-	*PC = ( *PC << 8) + hex2int(buf+26);
+	*PC = ( *PC << 8) + hex2int(buf+26); */
 	return 1;
 }
 
@@ -461,6 +565,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 		LOG("F=%d ",F);
 #endif
 		if(F==0) { // F=0 时，保存 CPR信息 
+			ALT = (*(DATA+1)<<4) + (*(DATA+2)>>4);
 			LAT_CPR_E = ((*(DATA+2)&0x3)<<15) + (*(DATA+3)<<7) + (*(DATA+4)>>1);
 			LON_CPR_E = ((*(DATA+4)&1)<<16) + (*(DATA+5)<<8) + *(DATA+6);
 			save_cpr(ICAO24, F, LAT_CPR_E, LON_CPR_E);
