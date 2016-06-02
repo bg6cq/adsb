@@ -8,7 +8,7 @@
 #include <mysql/mysql.h>
 MYSQL *mysql;
 
-void err_quit(char*s)
+void err_quit(const char*s)
 {
 	fprintf(stderr,s);
 	exit(0);

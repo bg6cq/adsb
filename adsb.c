@@ -47,17 +47,17 @@ void save_mysql(int i)
 {
 	char sqlbuf[MAXLEN];
 	int l;
-	l = snprintf(sqlbuf,MAXLEN,"INSERT INTO aircraftlog VALUES(now(),'%s','%s',%f,%f,%d,%f,%d,%d)",
+	l = snprintf(sqlbuf,MAXLEN,"INSERT INTO aircraftlog VALUES(now(),'%s','%s',%f,%f,%d,%.0f,%d,%d)",
 		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
-	LOG(sqlbuf);
-	LOG("\n");
+//	LOG(sqlbuf);
+//	LOG("\n");
 	if (mysql_real_query(mysql,sqlbuf,l)) {
                         err_quit(mysql_error(mysql));
         }
-	l = snprintf(sqlbuf,MAXLEN,"REPLACE INTO aircraftlast VALUES(now(),'%s','%s',%f,%f,%d,%f,%d,%d)",
+	l = snprintf(sqlbuf,MAXLEN,"REPLACE INTO aircraftlast VALUES(now(),'%s','%s',%f,%f,%d,%.0f,%d,%d)",
 		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
-	LOG(sqlbuf);
-	LOG("\n");
+//	LOG(sqlbuf);
+//	LOG("\n");
 	if (mysql_real_query(mysql,sqlbuf,l)) {
                         err_quit(mysql_error(mysql));
         }
@@ -333,7 +333,7 @@ LOG("Lat_EVEN = %f Lat_ODD = %f ", rlat0, rlat1);
     alat[aidindex] = lat;
 	alon[aidindex] = lon;
 	aalt[aidindex]=alt;
-LOG("%s Lat:%f Lon:%f Alt:%d(ft) V=%f(kn) H=%d VR=%d(ft/min)\n", aid[aidindex], lat, lon, alt, aspeed[aidindex], ah[aidindex], avr[aidindex]);
+LOG("%s Lat:%f Lon:%f Alt:%d(ft) V=%.0f(kn) H=%d VR=%d(ft/min)\n", aid[aidindex], lat, lon, alt, aspeed[aidindex], ah[aidindex], avr[aidindex]);
 	save_mysql(aidindex);
 }
 
@@ -416,7 +416,7 @@ LOG("msg: %s\n",buf);
 LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 #endif
 	if(DF!=17) {
-		LOG("ERROR: DF=%d buf I only know DF=17\n",DF);
+//		LOG("ERROR: DF=%d buf I only know DF=17\n",DF);
 		return;
 	}
 	if((TC>=1) && (TC<=4)) {		// Aircraft Identification
