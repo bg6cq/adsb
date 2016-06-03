@@ -111,12 +111,16 @@ if ($cmd=="map") {
 	<style type="text/css">
 		body, html{width: 100%;height: 100%;margin:0;font-family:"微软雅黑";}
 		#allmap {height:100%; width: 100%;}
+		#menu {position: fixed; background-color:blue; left: 10px; bottom: 30px; color: white}
 	</style>
 	<title>ADSB</title>
 	<script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=7RuEGPr12yqyg11XVR9Uz7NI"></script>
 </head>
 <body>
 <div id="allmap"></div>
+<div id=menu>
+<input type=checkbox checked id=autocenter onclick="change_pathpoints(this);">显示航点</input>
+</div>
 </body>
 </html>
 <script type="text/javascript">
@@ -128,6 +132,7 @@ var lasttm=0;
 var movepaths = {};
 var polylines = {};
 var movepoints = {};
+var display_pathpoints = true;
 
 var colors = ["#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
 
@@ -138,9 +143,11 @@ function getcolor(label){
 	colorindex = colorindex % colors.length;
 	return colors[colorindex];
 }
+
 function updatecalls(calls) {
 	// console.log("calls:"+calls);
 }
+
 function updatepkts(pkts) {
 	// console.log("pkts:"+pkts);
 }
@@ -156,6 +163,20 @@ function addp(aid,lon,lat,msg) {
 	})();
 	map.addOverlay(m);
 	return m;
+}
+
+function change_pathpoints()
+{
+	if(!display_pathpoints) {
+		display_pathpoints = true;
+		return;
+	}
+	for ( aid in lasttms ) {
+		for(i=0;i<movepoints[aid].length;i++) 
+			map.removeOverlay(movepoints[aid][i]);
+		movepoints[aid].splice(0, movepoints[aid].length);
+	}
+	display_pathpoints = false;
 }
 
 function deleteoldstation(tm, oldtime)
@@ -176,6 +197,7 @@ function deleteoldstation(tm, oldtime)
 		}
 	}
 }
+
 function setstation(lon, lat, label, tm, iconurl, msg)
 {	
 	if(markers.hasOwnProperty(label)) {   // call已经存在
@@ -193,8 +215,10 @@ function setstation(lon, lat, label, tm, iconurl, msg)
 		var p = new BMap.Point(lon,lat);
 		movepaths[label].push (p);
 		polylines[label].setPath(movepaths[label]);
-		m = addp(label,lon,lat,msg);
-		movepoints[label].push(m);
+		if(display_pathpoints) {
+			m = addp(label,lon,lat,msg);
+			movepoints[label].push(m);
+		}
 		return;
 	}
 	// 新call
@@ -222,9 +246,11 @@ function setstation(lon, lat, label, tm, iconurl, msg)
 	polylines[label] = new Array();
 	polylines[label] = new BMap.Polyline(movepaths[label],{strokeColor:getcolor(label), strokeWeight:4, strokeOpacity:0.9});
 	map.addOverlay(polylines[label]);
-	m = addp(label,lon,lat,msg);
 	movepoints[label] = new Array();
-	movepoints[label].push(m);
+	if(display_pathpoints) {
+		m = addp(label,lon,lat,msg);
+		movepoints[label].push(m);
+	}
 }
 
 var xmlHttpRequest;     //XmlHttpRequest对象     
@@ -254,8 +280,8 @@ function createXmlHttpRequest(){
 function UpdateStation(){     
 //	alert(lastupdatetm);
 	var b = map.getBounds();
-        var url = window.location.protocol+"//"+window.location.host+":"+window.location.port+"/"+window.location.pathname+"?tm="+lasttm;
-        //1.创建XMLHttpRequest组建     
+        var url = window.location.protocol+"//"+window.location.host+"/"+window.location.pathname+"?tm="+lasttm;
+        //1.创建XMLHttpRequest
         xmlHttpRequest = createXmlHttpRequest();     
         //2.设置回调函数     
         xmlHttpRequest.onreadystatechange = UpdateStationDisplay;
@@ -305,5 +331,4 @@ UpdateStation();
 <?php
 	exit(0);
 }
-
 ?>
