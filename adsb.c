@@ -476,13 +476,14 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 	}
 	for(i=0; i<14; i++) 
 		msg[i] = hex2int(buf+i*2);
+#if 0
 	if(0!=modesChecksum(msg,112)) {
 		LOG("CRC error\n");
 		if(fixSingleBitErrors(msg,112)==-1) // still could not fix
 			return 0;
 		LOG("CRC 1bit error fixed\n");
 	}
-		
+#endif		
 	t = hex2int(buf);
 	*DF = t >> 3;
 	*CA = t & 0x7;
