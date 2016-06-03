@@ -44,7 +44,9 @@ function urlmessage($aid,$icao, $alt, $speed, $h, $vr , $icon, $dtmstr) {
         $m =$m."轨迹";
         $m = $m."<a href=".$_SERVER["PHP_SELF"]."?gpx=".$aid." target=_blank>GPX</a> ";
         $m = $m."<a href=".$_SERVER["PHP_SELF"]."?kml=".$aid." target=_blank>KML</a> <hr color=green>".$dtmstr."<br>";
-        $m = $m."<b>海拔 ".$alt."ft<br>速度 ".$speed."kn/".$h."° <br>爬升 ".$vr."ft/min</b><br>";
+        $m = $m."<b>海拔 ".$alt."ft<br>速度 ".$speed."kn(";
+	$m = $m.sprintf("%dKPH)",$speed*1.852);
+	$m = $m."/".$h."° <br>爬升 ".$vr."ft/min</b><br>";
         $m = $m."</font>";
         return $m;
 }
@@ -128,14 +130,13 @@ var polylines = {};
 var movepoints = {};
 
 var colors = ["#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
-var colorindex = 0;
 
-function getcolor(){
-	var c = colors[colorindex];
-	colorindex++;
-	if(colorindex==colors.length) 
-		colorindex =0;
-	return c;
+function getcolor(label){
+	var colorindex = 0;
+	for(var i=0;i<label.length;i++)
+		colorindex += label.charCodeAt(i);
+	colorindex = colorindex % colors.length;
+	return colors[colorindex];
 }
 function updatecalls(calls) {
 	// console.log("calls:"+calls);
@@ -219,7 +220,7 @@ function setstation(lon, lat, label, tm, iconurl, msg)
 	movepaths[label] = new Array();
 	movepaths[label].push (p);
 	polylines[label] = new Array();
-	polylines[label] = new BMap.Polyline(movepaths[label],{strokeColor:getcolor(), strokeWeight:4, strokeOpacity:0.9});
+	polylines[label] = new BMap.Polyline(movepaths[label],{strokeColor:getcolor(label), strokeWeight:4, strokeOpacity:0.9});
 	map.addOverlay(polylines[label]);
 	m = addp(label,lon,lat,msg);
 	movepoints[label] = new Array();
