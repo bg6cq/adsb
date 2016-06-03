@@ -7,14 +7,8 @@ date_default_timezone_set( 'Asia/Shanghai');
 if (!isset($_SESSION["jiupian"]))
 	$_SESSION["jiupian"]=1;
 
-if (!isset($_SESSION["span"]))
-	$_SESSION["span"]=1;
-$span = $_SESSION["span"];
-if ( ($span<=0) || ($span >10) ) $span=1;
-
 $startdate=time() - 10* 60;  // 10 min
 $startdatestr=date("Y-m-d H:i:s",$startdate);
-
 
 if (isset($_REQUEST["tm"])) {
 	$cmd="tm";
@@ -51,18 +45,23 @@ function urlmessage($aid,$icao, $alt, $speed, $h, $vr , $icon, $dtmstr) {
         return $m;
 }
 
-
 if ($cmd=="tm") {
 	global $startdatestr;
+
+	$lon1=$_REQUEST["lon1"];
+        $lon2=$_REQUEST["lon2"];
+        $lat1=$_REQUEST["lat1"];
+        $lat2=$_REQUEST["lat2"];
+
 	$starttm = microtime(true);
 //删除1天前的每个台站最后状态数据包
 	$q="delete from aircraftlast where tm<=date_sub(now(),INTERVAL 1 day)";
 	$mysqli->query($q);
 	$endtm = microtime(true); $spantm = $endtm-$starttm; $startm=$endtm; echo "//".$spantm."\n";
 	
-	$q="select lat,lon,aid,unix_timestamp(tm),tm,icao,alt,speed,h,vr from aircraftlast where tm>=FROM_UNIXTIME(?) and tm>=? ";	
+	$q="select lat,lon,aid,unix_timestamp(tm),tm,icao,alt,speed,h,vr from aircraftlast where tm>=FROM_UNIXTIME(?) and tm>=? and lon >= ? and lon <= ? and lat >= ? and lat <= ? ";	
 	$stmt=$mysqli->prepare($q);
-       	$stmt->bind_param("is",$tm,$startdatestr);
+       	$stmt->bind_param("isdddd",$tm,$startdatestr,$lon1,$lon2,$lat1,$lat2);
         $stmt->execute();
 	$stmt->bind_result($lat,$lon,$aid,$dtm,$dtmstr,$icao,$alt,$speed,$h,$vr);
 
@@ -83,21 +82,14 @@ if ($cmd=="tm") {
 	$stmt->close();
 	$endtm = microtime(true); $spantm = $endtm-$starttm; $startm=$endtm; echo "//".$spantm."\n";
 
-	$q="select count(*) from aircraftlast where tm>=\"".$startdatestr."\"";
-	$result = $mysqli->query($q);
-	$r=$result->fetch_array();
-	echo "updatecalls(".$r[0].");\n";
-	$q="select count(*) from aircraftlog where tm>=\"".$startdatestr."\"";
-	$result = $mysqli->query($q);
-	$r=$result->fetch_array();
-	$r[0]=intval($r[0]);
-	echo "updatepkts(".$r[0].");\n";
-	$endtm = microtime(true); $spantm = $endtm-$starttm; $startm=$endtm; echo "//".$spantm."\n";
 	if($tm==0) {
 		if(isset($lon)) 
 			echo "map.centerAndZoom(new BMap.Point($lon,$lat),12);\n";
 	}
-	echo "deleteoldstation($dtm, 600);\n";
+	$q = "select unix_timestamp(now())";
+	$result = $mysqli->query($q);
+	$r=$result->fetch_array();
+	echo "deleteoldstation($r[0], 600);\n";
 	exit(0);
 }
 
@@ -280,7 +272,7 @@ function createXmlHttpRequest(){
 function UpdateStation(){     
 //	alert(lastupdatetm);
 	var b = map.getBounds();
-        var url = window.location.protocol+"//"+window.location.host+"/"+window.location.pathname+"?tm="+lasttm;
+        var url = window.location.protocol+"//"+window.location.host+"/"+window.location.pathname+"?tm="+lasttm+"&lon1="+b.getSouthWest().lng+"&lat1="+b.getSouthWest().lat+"&lon2="+b.getNorthEast().lng+"&lat2="+b.getNorthEast().lat;
         //1.创建XMLHttpRequest
         xmlHttpRequest = createXmlHttpRequest();     
         //2.设置回调函数     
@@ -323,9 +315,6 @@ map.addControl(top_left_navigation);
 map.addControl(new BMap.MapTypeControl());
 map.centerAndZoom(new BMap.Point(108.940178,34.5), 6);
 
-//centertocurrent();
-
-//createXmlHttpRequest();  
 UpdateStation();  
 </script>
 <?php
