@@ -162,7 +162,7 @@ if ($cmd=="tm") {
 		if ( $lon > $lon2) continue;
 		if ( $lat < $lat1) continue;
 		if ( $lat > $lat2) continue;
-		$icon = "img/2f5e.png";
+		$icon = "img/".$h.".png";
 		$dmsg = urlmessage($aid, $icao, $alt,$speed,$h,$vr,$icon,$dtmstr);
 		echo "setstation(".$lon.",".$lat.",\"".$aid."\",".$dtm.",\"".$icon."\",\n\"".$dmsg."\");\n";
 	}
@@ -526,7 +526,7 @@ function createXmlHttpRequest(){
 function UpdateStation(){     
 //	alert(lastupdatetm);
 	var b = map.getBounds();
-        var url = window.location.protocol+"//"+window.location.host+":"+window.location.port+"/"+window.location.pathname+"?tm="+lastupdatetm+"&aid="+aid+"&pathlen="+movepath.length+"&llon1="+llon1+"&llon2="+llon2+"&llat1="+llat1+"&llat2="+llat2+"&lon1="+b.getSouthWest().lng+"&lat1="+b.getSouthWest().lat+"&lon2="+b.getNorthEast().lng+"&lat2="+b.getNorthEast().lat+"&disp15min="+disp15min+"&ldisp15min="+ldisp15min;
+        var url = window.location.protocol+"//"+window.location.host+"/"+window.location.pathname+"?tm="+lastupdatetm+"&aid="+aid+"&pathlen="+movepath.length+"&llon1="+llon1+"&llon2="+llon2+"&llat1="+llat1+"&llat2="+llat2+"&lon1="+b.getSouthWest().lng+"&lat1="+b.getSouthWest().lat+"&lon2="+b.getNorthEast().lng+"&lat2="+b.getNorthEast().lat+"&disp15min="+disp15min+"&ldisp15min="+ldisp15min;
 	url = url+"&lspan="+lspan;
 	if(jiupian!=1) url = url+"&jiupian="+jiupian;
         //1.创建XMLHttpRequest组建     
