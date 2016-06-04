@@ -83,7 +83,7 @@ if ($cmd=="tm") {
 	$endtm = microtime(true); $spantm = $endtm-$starttm; $startm=$endtm; echo "//".$spantm."\n";
 
 	if($tm==0) {
-		if(isset($lon)) 
+		if(isset($lon) && $lon<>0 ) 
 			echo "map.centerAndZoom(new BMap.Point($lon,$lat),12);\n";
 	}
 	$q = "select unix_timestamp(now())";
@@ -126,7 +126,7 @@ var polylines = {};
 var movepoints = {};
 var display_pathpoints = true;
 
-var colors = ["#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
+var colors = ["#000000", "#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
 
 function getcolor(label){
 	var colorindex = 0;
