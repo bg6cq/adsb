@@ -13,7 +13,11 @@ http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <sys/socket.h>
+#include <netinet/tcp.h>
+#include "sock.h"
 
+//#define DEBUG 1
 //#define MOREDEBUG 1
 
 #define LOG printf
@@ -82,7 +86,9 @@ void save_aid(char *ICAO, char *AID)
 			break;
 	}
 	if(i == MAXID) { // 满了，不存
+#ifdef DEBUG
 		LOG("WARN: Too Many Aircraft to track\n");
+#endif
 		return;
 	}
 	aidtm[i] = ctm;
@@ -335,7 +341,9 @@ LOG("Lat_EVEN = %f Lat_ODD = %f ", rlat0, rlat1);
     	alat[aidindex] = lat;
 	alon[aidindex] = lon;
 	aalt[aidindex] = alt;
+#ifdef DEBUG
 LOG("%s Lat:%f Lon:%f Alt:%d(ft) V=%.0f(kn) H=%d VR=%d(ft/min)\n", aid[aidindex], lat, lon, alt, aspeed[aidindex], ah[aidindex], avr[aidindex]);
+#endif
 	save_mysql(aidindex);
 }
 
@@ -466,12 +474,16 @@ int decode_adsb_outer_layer(uint8_t *buf, uint8_t *DF, uint8_t *CA, uint8_t *ICA
 	uint8_t t;
 	uint8_t msg[14];
 	if(strlen(buf) != 28) {
+#ifdef DEBUG
 		LOG("WARN: msg %s len!=28\n",buf);
+#endif
 		return 0;
 	}
 	for(i=0; i<28; i++) {
 		if( isxdigit(buf[i])) continue;
+#ifdef DEBUG
 		LOG("ERROR: msg %s:%d %c is not a hex\n",buf,i,buf[i]);
+#endif
 		return 0;
 	}
 	for(i=0; i<14; i++) 
@@ -684,27 +696,24 @@ void Log(char *s)
 		fprintf(fp,"%02d:%02d:%02d %s", tm_hour, tm_min, tm_sec, s);
 }
 
-int main(int argc, char *argv[])
+void Process(int r_fd)
 {	char buf[MAXLEN];
+	int optval = 1;
+	socklen_t optlen = sizeof(optval);
+	int n;
+	Setsockopt(r_fd, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen);
+	optval = 3;
+	Setsockopt(r_fd, SOL_TCP, TCP_KEEPCNT, &optval, optlen);
+	optval = 2;
+	Setsockopt(r_fd, SOL_TCP, TCP_KEEPIDLE, &optval, optlen);
+	optval = 2;
+	Setsockopt(r_fd, SOL_TCP, TCP_KEEPINTVL, &optval, optlen);
 
-#if 0
-//	tast data ICAO been changed, CRC not corrected
-//	test data aid from http://adsb-decode-guide.readthedocs.io/en/latest/identification.html
-	decode_adsb("8D4840D6202CC371C32CE0576098");
-// 	test data postion from http://adsb-decode-guide.readthedocs.io/en/latest/position.html
-	decode_adsb("8D4840D658C386435CC412692AD6");
-	decode_adsb("8D4840D658C382D690C8AC2863A7");
-//	test data Velocity from http://adsb-decode-guide.readthedocs.io/en/latest/position.html
-	decode_adsb("8D4840D6994409940838175B284F");
-	decode_adsb("8D4840D69B06B6AF189400CBC33F");
-//	test data postion from http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
-	decode_adsb("8D4840D7202CC381C32CE0576098");
-	decode_adsb("8D4840D7580FF2CF7E9BA6F701D0");
-	decode_adsb("8D4840D7580FF6B283EB7A157117");
-#endif
-	mysql=connectdb();
-	while(fgets(buf,MAXLEN,stdin)) {
+	while(n=Readline(r_fd,buf,MAXLEN)) {
+		if(n<=0) 
+			exit(0);
 		Log(buf);
+		buf[n]=0;
 		if(buf[0]!='*') 
 			continue;
 		if(strlen(buf+1)<28)
@@ -713,6 +722,33 @@ int main(int argc, char *argv[])
 			buf[29]=0;
 			decode_adsb(buf+1);
 		}
+	}
+}
+
+int main(int argc, char *argv[])
+{	int listen_fd;
+	int llen;
+
+#ifndef DEBUG
+	daemon_init("adsb",LOG_DAEMON);
+#endif
+	mysql=connectdb();
+	listen_fd = Tcp_listen("0.0.0.0","33001",(socklen_t *)&llen);
+
+	while (1) {
+		int c_fd;
+		struct sockaddr sa; int slen;
+		slen = sizeof(sa);
+		c_fd = Accept(listen_fd, &sa, (socklen_t *)&slen);
+#ifdef DEBUG
+		Process(c_fd);
+#else
+		if( Fork()==0 ) {
+			Close(listen_fd);
+			Process(c_fd);
+		}
+#endif
+		Close(c_fd);
 	}
 	return 0;
 }

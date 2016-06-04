@@ -8,12 +8,6 @@
 #include <mysql/mysql.h>
 MYSQL *mysql;
 
-void err_quit(const char*s)
-{
-	fprintf(stderr,s);
-	exit(0);
-}
-
 MYSQL * connectdb(void)
 {
         MYSQL *mysql;
