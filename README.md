@@ -63,3 +63,18 @@ CREATE TABLE `userlog` (
 insert into user values('username',md5('password'));
 
 </pre>
+
+1. https://www.raspberrypi.org/downloads/raspbian/ RASPBIAN JESSIE LITE
+2. https://www.raspberrypi.org/documentation/installation/installing-images/README.md
+3. login as pi, raspberry
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get install git-core git cmake libusb-1.0.0-dev build-essential
+git clone git://git.osmocom.org/rtl-sdr.git
+cd rtl-sdr
+mkdir build
+cd build
+cmake ../ -DINSTALL_UDEV_RULES=ON
+make
+
+
