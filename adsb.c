@@ -354,14 +354,18 @@ uint8_t hex2int(char *buf)
 {	uint8_t t;
 	if( (buf[0]>='0') && (buf[0]<='9') )
 		t = buf[0]-'0';
-	 else if( (buf[0]>='A') && (buf[0]<='F') )
+	else if( (buf[0]>='A') && (buf[0]<='F') )
 		t = buf[0]-'A'+10;
+	else if( (buf[0]>='a') && (buf[0]<='f') )
+		t = buf[0]-'a'+10;
 	else return 0;
 	t = t<<4;
 	if( (buf[1]>='0') && (buf[1]<='9') )
 		t += buf[1]-'0';
 	else if( (buf[1]>='A') && (buf[1]<='F') )
 		t += buf[1]-'A'+10;
+	else if( (buf[1]>='a') && (buf[1]<='f') )
+		t += buf[1]-'a'+10;
 	else return 0;
 	return t;
 }
@@ -729,6 +733,7 @@ int main(int argc, char *argv[])
 {	int listen_fd;
 	int llen;
 
+	signal(SIGCLD, SIG_IGN);
 #ifndef DEBUG
 	daemon_init("adsb",LOG_DAEMON);
 #endif

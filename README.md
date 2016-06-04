@@ -64,6 +64,10 @@ insert into user values('username',md5('password'));
 
 </pre>
 
+<pre>
+http://www.satsignal.eu/raspberry-pi/dump1090.html
+
+
 1. https://www.raspberrypi.org/downloads/raspbian/ RASPBIAN JESSIE LITE
 2. https://www.raspberrypi.org/documentation/installation/installing-images/README.md
 3. login as pi, raspberry
@@ -77,4 +81,42 @@ cd build
 cmake ../ -DINSTALL_UDEV_RULES=ON
 make
 
+sudo make install
+sudo ldconfig
 
+sudo cp ./rtl-sdr/rtl-sdr.rules /etc/udev/rules.d/
+
+sudo vi /etc/modprobe.d/no-rtl.conf     Add the following lines to the new file:
+blacklist dvb_usb_rtl28xxu
+blacklist rtl2832
+blacklist rtl2830
+
+sudo reboot
+
+rtl_test -t will see the RTL2832U
+
+4. 校准频率
+mkdir ~/kal
+cd ~/kal
+sudo apt-get install libtool autoconf automake libfftw3-dev
+git clone https://github.com/asdil12/kalibrate-rtl.git
+cd kalibrate-rtl
+git checkout arm_memory		# Essential for the Raspberry Pi
+./bootstrap
+./configure
+make
+sudo make install
+
+kal -s GSM900 -d 0 -g 40  找出功率最高的channel
+然后
+kal -c <channel> -d 0 -g 40
+校准
+
+5. 
+cd ~
+git clone git://github.com/MalcolmRobb/dump1090.git
+cd dump1090
+make  (如果错误，执行 sudo apt-get install pkg-config 后再make)
+
+./dump1090 --raw | nc x.x.x.x 33001
+</pre>
