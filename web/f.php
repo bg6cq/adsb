@@ -13,7 +13,11 @@ date_default_timezone_set( 'Asia/Shanghai');
 if (!isset($_SESSION["jiupian"]))
 	$_SESSION["jiupian"]=1;
 
-$startdate=time() - 10* 60;  // 10 min
+$span = $_REQUEST['span'];
+
+if($span<=0) $span = 5;
+if($span>60) $span = 5;
+$startdate=time() - $span * 60;  
 $startdatestr=date("Y-m-d H:i:s",$startdate);
 
 if (isset($_REQUEST["tm"])) {
@@ -95,7 +99,7 @@ if ($cmd=="tm") {
 	$q = "select unix_timestamp(now())";
 	$result = $mysqli->query($q);
 	$r=$result->fetch_array();
-	echo "deleteoldstation($r[0], 600);\n";
+	echo "deleteoldstation($r[0]);\n";
 	exit(0);
 }
 
@@ -117,7 +121,12 @@ if ($cmd=="map") {
 <body>
 <div id="allmap"></div>
 <div id=menu>
-<input type=checkbox checked id=autocenter onclick="change_pathpoints(this);">显示航点</input>
+<input type=checkbox checked id=disp_pathpoints onclick="change_pathpoints(this);">显示航点</input>&nbsp; 
+显示老化<select id=path_time onchange="span=this.options[this.options.selectedIndex].value;">
+<option value=1>1分钟</option>
+<option value=5 selected>5分钟</option>
+<option value=10>10分钟</option>
+</select>
 </div>
 </body>
 </html>
@@ -131,6 +140,7 @@ var movepaths = {};
 var polylines = {};
 var movepoints = {};
 var display_pathpoints = true;
+var span = 5;
 
 var colors = ["#000000", "#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
 
@@ -177,9 +187,9 @@ function change_pathpoints()
 	display_pathpoints = false;
 }
 
-function deleteoldstation(tm, oldtime)
+function deleteoldstation(tm)
 {	for ( aid in lasttms ) {
-		if( lasttms[aid] < tm - oldtime) {  // too old, delete it
+		if( lasttms[aid] < tm - span*60) {  // too old, delete it
 			console.log(aid);	
 			map.removeOverlay(polylines[aid]);
 			delete polylines[aid];
@@ -278,7 +288,7 @@ function createXmlHttpRequest(){
 function UpdateStation(){     
 //	alert(lastupdatetm);
 	var b = map.getBounds();
-        var url = window.location.protocol+"//"+window.location.host+"/"+window.location.pathname+"?tm="+lasttm+"&lon1="+b.getSouthWest().lng+"&lat1="+b.getSouthWest().lat+"&lon2="+b.getNorthEast().lng+"&lat2="+b.getNorthEast().lat;
+        var url = window.location.protocol+"//"+window.location.host+"/"+window.location.pathname+"?tm="+lasttm+"&span="+span+"&lon1="+b.getSouthWest().lng+"&lat1="+b.getSouthWest().lat+"&lon2="+b.getNorthEast().lng+"&lat2="+b.getNorthEast().lat;
         //1.创建XMLHttpRequest
         xmlHttpRequest = createXmlHttpRequest();     
         //2.设置回调函数     
