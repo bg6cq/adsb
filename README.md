@@ -1,14 +1,16 @@
-ADS-B 解码程序
+ADS-B 解码程序<p>
 
-使用了以下项目的资料和代码，感谢原作者
-http://adsb-decode-guide.readthedocs.io
-https://github.com/etabbone/01.ADSB_BSBv6_UPS
-http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
+使用了以下项目的资料和代码，感谢原作者<br>
+http://adsb-decode-guide.readthedocs.io<br>
+https://github.com/etabbone/01.ADSB_BSBv6_UPS<br>
+http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html<p>
 
 
-将 web 目录设置在 http服务器可见，如
+将 web 目录设置在 http服务器可见，如<br>
 ln -s /usr/src/adsb/web /var/www/html/addsb
 
+
+<pre>
 
 使用方法：
 mkdir /var/log/adsb     用来保存收到的数据包
@@ -46,3 +48,18 @@ CREATE TABLE `aircraftlog` (
   `vr` int(11) NOT NULL,
   KEY `tm` (`tm`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+CREATE TABLE `user` (
+  `user` varchar(20) DEFAULT NULL,
+  `pass` varchar(200) DEFAULT NULL
+) ENGINE=MyISAM;
+
+CREATE TABLE `userlog` (
+  `tm` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user` varchar(20) DEFAULT NULL,
+  `IP` varchar(100) DEFAULT NULL
+) ENGINE=MyISAM;
+
+insert into user values('username',md5('password'));
+
+</pre>

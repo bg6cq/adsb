@@ -2,6 +2,12 @@
 
 include "db.php";
 
+if(!isset($_SESSION['user'])) {
+	header("location: login.php?url=".$_SERVER["PHP_SELF"]);
+	exit(0);
+}
+
+
 date_default_timezone_set( 'Asia/Shanghai');
 
 if (!isset($_SESSION["jiupian"]))
