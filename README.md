@@ -14,8 +14,11 @@ ln -s /usr/src/adsb/web /var/www/html/addsb
 
 使用方法：
 mkdir /var/log/adsb     用来保存收到的数据包
-X.X.X.X 是运行dump1090的机器，设置为avr输出
-nc X.X.X.X 31001 | ./adsb 
+
+运行 adsb 服务程序后，
+在dump1090机器上执行
+./dump1090 --raw | nc X.X.X.X 31001 
+X.X.X.X 是运行adsb服务程序的机器
 
 
 
@@ -64,6 +67,8 @@ insert into user values('username',md5('password'));
 
 </pre>
 
+
+树莓派dump1090安装
 <pre>
 http://www.satsignal.eu/raspberry-pi/dump1090.html
 
