@@ -15,6 +15,8 @@ http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 #include <time.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "sock.h"
 
 //#define DEBUG 1
@@ -675,9 +677,10 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 void Log(char *s)
 {
         time_t t;
-	static FILE *fp;
+	static int log_fd=-1;
         static time_t last_t=0;
         static int tm_hour, tm_min, tm_sec;
+	char buf[MAXLEN];
         time(&t);
         if ( t != last_t ) {
                 static int lastday = 0;
@@ -688,16 +691,18 @@ void Log(char *s)
                 tm_min = ctm->tm_min;
                 tm_sec = ctm->tm_sec;
                 if( ctm->tm_mday != lastday)  {
-        		char fnbuf[MAXLEN];
-        		if(fp) fclose(fp);
+			char fnbuf[MAXLEN];
+			if(log_fd!=-1) close(log_fd);
         		snprintf(fnbuf,MAXLEN,"/var/log/adsb/%04d.%02d.%02d.log",
                 		ctm->tm_year+1900, ctm->tm_mon+1, ctm->tm_mday);
-        		fp = fopen(fnbuf,"a");
+			log_fd = open(fnbuf, O_WRONLY|O_APPEND|O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
                         lastday = ctm->tm_mday;
                 }
         }
-        if(fp) 
-		fprintf(fp,"%02d:%02d:%02d %s", tm_hour, tm_min, tm_sec, s);
+        if(log_fd!=-1) {
+		int n= snprintf(buf,MAXLEN-1,"%02d:%02d:%02d %s", tm_hour, tm_min, tm_sec, s);
+		write(log_fd,buf,n);
+	}
 }
 
 void Process(int r_fd)
