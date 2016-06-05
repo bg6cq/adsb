@@ -28,7 +28,7 @@ if(!isset($_SESSION['user'])) {
 
 请输入用户和密码验证身份：<br>
 <form action=login.php method=post>
-用户：<input name=user><br>
+用户：<input name=user><p>
 密码：<input name=pass type=password><p>
 <?php echo "<input name=url type=hidden value=\"".$_SERVER["PHP_SELF"]."\">"; ?>
 <input type=submit value='登录'>
