@@ -25,7 +25,6 @@
 </html>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
 <script>
 
 function arrayBuffer2String(buf, callback) {
@@ -43,12 +42,13 @@ function ab2str(buf) {
 }
 
 var socket = io();
+socket.on('connect', function(){
+	map_resize();
+	});
 socket.on('ADSB', function(msg){
 	var txt = ab2str(msg);
-	console.log(txt);
 	var obj = eval ("(" + txt + ")");
-	console.log(obj.aid);
-	setstation(obj.lon, obj.lat, obj.aid, obj.head, "alt: "+obj.alt+"<br>speed:"+obj.speed)
+	setstation(obj.tm, obj.lon, obj.lat, obj.aid, obj.alt, obj.speed, obj.head, obj.vr)
 	});
 
 function map_resize() {
@@ -141,10 +141,13 @@ function deleteoldstation()
 setTimeout("deleteoldstation();","2000");  
 
 var centered=false;
-function setstation(lon, lat, label, head, msg)
+function setstation(tmstr, lon, lat, label, alt, speed, head, vr)
 {	var d = new Date();	
 	var tm= d.getTime()/1000;
 	var iconurl = "img/"+head+".png";
+	var msg= "<font face=微软雅黑 size=2><img src="+iconurl+"> "+label+
+        	"<hr color=green>"+tmstr+"<br>"+
+        	"<b> 海拔 "+alt+"ft("+Math.round(alt*0.3048)+"米)<br>速度 "+speed+"kn("+Math.round(speed*1.852)+"KPH)/"+head+"° <br>爬升 "+vr+"ft/min</b><br></font>";
 
 	if(markers.hasOwnProperty(label)) {   // call已经存在
 		if(tm<=lasttms[label]) return; // 同一时间的点已经更新过了（假定每秒最多传回来一个点，第二个点不再处理）

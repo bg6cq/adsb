@@ -80,8 +80,13 @@ void sendudp(char*buf, int len, char *host, int port)
 void save_mysql(int i)
 {
 	char sqlbuf[MAXLEN];
-	int l;
-	l = snprintf(sqlbuf,MAXLEN,"{ \"icao\": \"%s\", \"aid\": \"%s\", \"lat\": %f, \"lon\": %f, \"alt\": %d, \"speed\": %.0f, \"head\": %d, \"vr\": %d }",
+	int l; struct tm *ctm;
+	time_t t;
+	t = time(NULL);
+        ctm = localtime(&t);
+
+	l = snprintf(sqlbuf,MAXLEN,"{ \"tm\": \"%04d-%02d-%02d %02d:%02d:%02d\", \"icao\": \"%s\", \"aid\": \"%s\", \"lat\": %f, \"lon\": %f, \"alt\": %d, \"speed\": %.0f, \"head\": %d, \"vr\": %d }",
+		ctm->tm_year+1900, ctm->tm_mon+1, ctm->tm_mday, ctm->tm_hour, ctm->tm_min, ctm->tm_sec,
 		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
 	sendudp(sqlbuf, l, "127.0.0.1", 33088); // send to nodejs server
 

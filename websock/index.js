@@ -19,9 +19,9 @@ udpserver.on('message', function (msg, remote) {
 	// console.log(remote.address + ':' + remote.port +' - ' + msg);
 	// console.log(".");
 	var txt = ab2str(msg);
-        console.log(txt);
+        //console.log(txt);
         var obj = eval ("(" + txt + ")");
-        console.log(obj.aid);
+        //console.log(obj.aid);
 	for ( sock in usersockets ) {
 		if( lon1[sock] <= obj.lon && obj.lon <=lon2[sock] 
 		  &&lat1[sock] <= obj.lat && obj.lat <=lat2[sock] ) {
@@ -52,29 +52,33 @@ var lon2 = {};
 var lat1 = {};
 var lat2 = {};
 io.on('connection', function(socket){
-	usersockets[socket]=socket;
+	usersockets[socket.id]=socket;
 	usercount++;
-	userindex[socket]=usercount;
-	lon1[socket] = 0;
-	lon2[socket] = 180;
-	lat1[socket] = 0;
-	lat2[socket] = 90;
-	console.log('websocket user '+usercount+' connected');
+	userindex[socket.id]=usercount;
+	lon1[socket.id] = 0;
+	lon2[socket.id] = 180;
+	lat1[socket.id] = 0;
+	lat2[socket.id] = 90;
+	console.log('websocket user '+usercount+' '+socket.id+' connected');
 	socket.on('disconnect', function(){
-		console.log('websocket user '+userindex[socket]+' disconnected');
-		delete  usersockets[socket];
-		delete  userindex[socket];
-		delete lon1[socket];
-		delete lon2[socket];
-		delete lat1[socket];
-		delete lat2[socket];
+		(function(){
+		console.log('websocket user '+userindex[socket.id]+' '+socket.id+' disconnected');
+		delete  usersockets[socket.id];
+		delete  userindex[socket.id];
+		delete lon1[socket.id];
+		delete lon2[socket.id];
+		delete lat1[socket.id];
+		delete lat2[socket.id];
+		})();
 	});
 	socket.on('viewchange', function(data){
-		console.log('websocket user '+userindex[socket]+' viewchange: '+data.lon1+'-'+data.lon2+'/'+data.lat1+'-'+data.lat2);
-		lon1[socket]=data.lon1;
-		lon2[socket]=data.lon2;
-		lat1[socket]=data.lat1;
-		lat2[socket]=data.lat2;
+		(function(){
+		console.log('websocket user '+userindex[socket.id]+' viewchange: '+data.lon1+'-'+data.lon2+'/'+data.lat1+'-'+data.lat2);
+		lon1[socket.id]=data.lon1;
+		lon2[socket.id]=data.lon2;
+		lat1[socket.id]=data.lat1;
+		lat2[socket.id]=data.lat2;
+		})();
 	});
 });
 
