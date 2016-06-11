@@ -50,10 +50,41 @@ int Fbit[MAXID*2];
 
 #include "db.h"
 
+void sendudp(char*buf, int len, char *host, int port)
+{
+        struct sockaddr_in si_other;
+        int s, slen=sizeof(si_other);
+        int l;
+#ifdef DEBUG
+        fprintf(stderr,"send to %s,",host);
+#endif
+        if ((s=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP))==-1) {
+                fprintf(stderr,"socket error");
+                return;
+        }
+        memset((char *) &si_other, 0, sizeof(si_other));
+        si_other.sin_family = AF_INET;
+        si_other.sin_port = htons(port);
+        if (inet_aton(host, &si_other.sin_addr)==0) {
+                fprintf(stderr, "inet_aton() failed\n");
+                close(s);
+                return;
+        }
+        l = sendto(s, buf, len, 0, (const struct sockaddr *)&si_other, slen);
+#ifdef DEBUG
+        fprintf(stderr,"%d\n",l);
+#endif
+        close(s);
+}
+
 void save_mysql(int i)
 {
 	char sqlbuf[MAXLEN];
 	int l;
+	l = snprintf(sqlbuf,MAXLEN,"{ \"icao\": \"%s\", \"aid\": \"%s\", \"lat\": %f, \"lon\": %f, \"alt\": %d, \"speed\": %.0f, \"head\": %d, \"vr\": %d }",
+		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
+	sendudp(sqlbuf, l, "127.0.0.1", 33088); // send to nodejs server
+
 	l = snprintf(sqlbuf,MAXLEN,"INSERT INTO aircraftlog VALUES(now(),'%s','%s',%f,%f,%d,%.0f,%d,%d)",
 		icaos[i],aid[i],alat[i],alon[i],aalt[i],aspeed[i],ah[i],avr[i]);
 //	LOG(sqlbuf);
