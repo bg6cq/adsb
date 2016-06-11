@@ -51,6 +51,14 @@ socket.on('ADSB', function(msg){
 	setstation(obj.lon, obj.lat, obj.aid, obj.head, "alt: "+obj.alt+"<br>speed:"+obj.speed)
 	});
 
+function map_resize() {
+	var b = map.getBounds();
+        lon1=b.getSouthWest().lng;
+	lat1=b.getSouthWest().lat;
+	lon2=b.getNorthEast().lng;
+	lat2=b.getNorthEast().lat;
+	socket.emit('viewchange', { lon1: lon1, lat1: lat1, lon2: lon2, lat2: lat2});	
+}
 
 var markers = {};
 var lasttms = {};
@@ -231,7 +239,11 @@ var top_left_navigation = new BMap.NavigationControl();  //左上角，添加默
 map.addControl(top_left_control);        
 map.addControl(top_left_navigation);     
 map.addControl(new BMap.MapTypeControl());
-map.centerAndZoom(new BMap.Point(108.940178,34.5), 6);
 
+map.addEventListener('moveend', map_resize);
+map.addEventListener('zoomend', map_resize);
+map.addEventListener('resize', map_resize);
+
+map.centerAndZoom(new BMap.Point(108.940178,34.5), 6);
 </script>
 
