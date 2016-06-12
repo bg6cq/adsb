@@ -12,25 +12,22 @@ udpserver.on('listening', function () {
 udpserver.bind(PORT, HOST);
 
 function ab2str(buf) {
-  return String.fromCharCode.apply(null, new Uint8Array(buf));
+	return String.fromCharCode.apply(null, new Uint8Array(buf));
 }
 
 udpserver.on('message', function (msg, remote) {
 	// console.log(remote.address + ':' + remote.port +' - ' + msg);
-	// console.log(".");
 	var txt = ab2str(msg);
         //console.log(txt);
-        var obj = eval ("(" + txt + ")");
-        //console.log(obj.aid);
-	for ( sock in usersockets ) {
-		if( lon1[sock] <= obj.lon && obj.lon <=lon2[sock] 
-		  &&lat1[sock] <= obj.lat && obj.lat <=lat2[sock] ) {
-			console.log("sending to user "+userindex[sock]);
-			usersockets[sock].emit('ADSB', msg); 
+	var obj = JSON.parse(txt);
+	for ( uidx in usersockets ) {
+		if( lon1[uidx] <= obj.lon && obj.lon <=lon2[uidx]
+		  &&lat1[uidx] <= obj.lat && obj.lat <=lat2[uidx] ) {
+			console.log("sending to user "+userindex[uidx]);
+			usersockets[uidx].emit('ADSB', obj);
 		} else
-			console.log("do not sending to user "+userindex[sock]);
+			console.log("do not sending to user "+userindex[uidx]);
 	}
-    	// io.sockets.emit('ADSB', msg);
 });
 
 var express = require('express'); // Get the module
@@ -61,7 +58,7 @@ io.on('connection', function(socket){
 	lat2[socket.id] = 90;
 	console.log('websocket user '+usercount+' '+socket.id+' connected');
 	socket.on('disconnect', function(){
-		(function(){
+//		(function(){
 		console.log('websocket user '+userindex[socket.id]+' '+socket.id+' disconnected');
 		delete  usersockets[socket.id];
 		delete  userindex[socket.id];
@@ -69,16 +66,16 @@ io.on('connection', function(socket){
 		delete lon2[socket.id];
 		delete lat1[socket.id];
 		delete lat2[socket.id];
-		})();
+//		})();
 	});
 	socket.on('viewchange', function(data){
-		(function(){
+//		(function(){
 		console.log('websocket user '+userindex[socket.id]+' viewchange: '+data.lon1+'-'+data.lon2+'/'+data.lat1+'-'+data.lat2);
 		lon1[socket.id]=data.lon1;
 		lon2[socket.id]=data.lon2;
 		lat1[socket.id]=data.lat1;
 		lat2[socket.id]=data.lat2;
-		})();
+//		})();
 	});
 });
 
