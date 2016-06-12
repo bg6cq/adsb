@@ -123,5 +123,21 @@ git clone git://github.com/MalcolmRobb/dump1090.git
 cd dump1090
 make  (如果错误，执行 sudo apt-get install pkg-config 后再make)
 
-./dump1090 --raw | nc x.x.x.x 33001
+这时 ./dump1090 --raw  能看到输出
+
+6. 设置自动启动
+vi /home/pi/run ，写入以下4行内容
+
+#!/bin/bash
+while true
+do /home/pi/dump1090/dump1090 --gain -10 --ppm 40 --raw | nc 202.141.176.2 33001
+done
+
+
+执行 chmod a+x /home/pi/run
+
+sudo vi /etc/rc.local 增加一行
+/home/pi/run &
+
+
 </pre>
