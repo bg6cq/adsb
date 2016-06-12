@@ -8,7 +8,7 @@
 		#allmap {height:100%; width: 100%;}
 		#menu {position: fixed; background-color:blue; left: 10px; bottom: 30px; color: white}
 	</style>
-	<title>ADSB</title>
+	<title>ADSB实时数据(<%= user.username %>)</title>
 </head>
 <body>
 <div id="allmap"></div>
@@ -33,15 +33,15 @@ socket.on('connect', function(){
 });
 
 socket.on('ADSB', function(obj){
-	setstation(obj.tm, obj.lon, obj.lat, obj.aid, obj.alt, obj.speed, obj.head, obj.vr)
+	updateaid(obj.tm, obj.aid, obj.lon, obj.lat, obj.alt, obj.speed, obj.head, obj.vr)
 });
 
 function map_resize() {
 	var b = map.getBounds();
-        lon1=b.getSouthWest().lng;
-	lat1=b.getSouthWest().lat;
-	lon2=b.getNorthEast().lng;
-	lat2=b.getNorthEast().lat;
+        lon1 = b.getSouthWest().lng;
+	lat1 = b.getSouthWest().lat;
+	lon2 = b.getNorthEast().lng;
+	lat2 = b.getNorthEast().lat;
 	socket.emit('viewchange', { lon1: lon1, lat1: lat1, lon2: lon2, lat2: lat2});	
 }
 
@@ -49,33 +49,25 @@ var markers = {};
 var lasttms = {};
 var iconurls = {};
 var infowindows = {};
-var lasttm=0;
 var movepaths = {};
 var polylines = {};
 var movepoints = {};
 var display_pathpoints = true;
 var span = 5;
-var centered=false;
+var centered = false;
 
-var colors = ["#000000", "#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
+var colors = ["#000000","#1400FF","#14F0FF","#78FF00","#FF78F0","#0078F0","#F0FF14","#FF78F0","#FF78F0","#FF78F0"];
 
-function getcolor(label){
+function getcolor(aid){
 	var colorindex = 0;
-	for(var i=0;i<label.length;i++)
-		colorindex += label.charCodeAt(i);
+	for(var i=0;i<aid.length;i++)
+		colorindex += aid.charCodeAt(i);
 	colorindex = colorindex % colors.length;
 	return colors[colorindex];
 }
 
-function updatecalls(calls) {
-	// console.log("calls:"+calls);
-}
-
-function updatepkts(pkts) {
-	// console.log("pkts:"+pkts);
-}
-
-function addp(aid,lon,lat,msg) {
+//增加航迹点
+function addp(aid, lon, lat, msg) {
 	var icon = new BMap.Icon("img/p.png", new BMap.Size(3, 3));	
 	var m = new BMap.Marker(new BMap.Point(lon,lat), {icon: icon});
 	var infowindow = new BMap.InfoWindow(msg, {width:300});
@@ -104,10 +96,9 @@ function change_pathpoints()
 
 function deleteoldstation()
 {	var d = new Date();	
-	var tm= d.getTime()/1000;
+	var tm = d.getTime()/1000;
 	for ( aid in lasttms ) {
 		if( lasttms[aid] < tm - span*60) {  // too old, delete it
-//			console.log(aid);
 			map.removeOverlay(polylines[aid]);
 			delete polylines[aid];
 			map.removeOverlay(markers[aid]);
@@ -118,46 +109,45 @@ function deleteoldstation()
 			delete lasttms[aid];
 			for(i=0;i<movepoints[aid].length;i++) 
 				map.removeOverlay(movepoints[aid][i]);
+			movepoints[aid].splice(0, movepoints[aid].length);
 			delete movepoints[aid];
 		}
 	}
        	setTimeout("deleteoldstation();","2000");  
 }
 
-
-function setstation(tmstr, lon, lat, label, alt, speed, head, vr)
+function updateaid(tmstr, aid, lon, lat, alt, speed, head, vr)
 {	var d = new Date();	
-	var tm= d.getTime()/1000;
+	var tm = Math.round(d.getTime()/1000);
 	var iconurl = "img/"+head+".png";
-	var msg= "<font face=微软雅黑 size=2><img src="+iconurl+"> "+label+
+	var msg= "<font face=微软雅黑 size=2><img src="+iconurl+"> "+aid+
         	"<hr color=green>"+tmstr+"<br>"+
         	"<b> 海拔 "+alt+"ft("+Math.round(alt*0.3048)+"米)<br>速度 "+speed+"kn("+Math.round(speed*1.852)+"KPH)/"+head+"° <br>爬升 "+vr+"ft/min</b><br></font>";
 
-	if(markers.hasOwnProperty(label)) {   // call已经存在
-		if(tm<=lasttms[label]) return; // 同一时间的点已经更新过了（假定每秒最多传回来一个点，第二个点不再处理）
-		markers[label].setPosition( new BMap.Point(lon, lat) ); // 更改最后的点位置
-		infowindows[label].setContent(msg);
-		if(iconurls[label]!=iconurl) {
+	if(markers.hasOwnProperty(aid)) {   // aid已经存在
+		if(tm<=lasttms[aid]) return; // 同一时间的点已经更新过了（假定每秒最多传回来一个点，第二个点不再处理）
+		markers[aid].setPosition( new BMap.Point(lon, lat) ); // 更改最后的点位置
+		infowindows[aid].setContent(msg);
+		if(iconurls[aid]!=iconurl) {
 			var nicon = new BMap.Icon(iconurl, new BMap.Size(24, 24), {anchor: new BMap.Size(12, 12)});
-			markers[label].setIcon(nicon);
-			iconurls[label]=iconurl;
+			markers[aid].setIcon(nicon);
+			iconurls[aid]=iconurl;
 		}
-		lasttms[label] = tm;
-		if(tm>lasttm) lasttm = tm;
+		lasttms[aid] = tm;
 		// 更新航迹
 		var p = new BMap.Point(lon,lat);
-		movepaths[label].push (p);
-		polylines[label].setPath(movepaths[label]);
+		movepaths[aid].push (p);
+		polylines[aid].setPath(movepaths[aid]);
 		if(display_pathpoints) {
-			m = addp(label,lon,lat,msg);
-			movepoints[label].push(m);
+			m = addp(aid,lon,lat,msg);
+			movepoints[aid].push(m);
 		}
 		return;
 	}
-	// 新call
+	// 新aid
 	var icon = new BMap.Icon(iconurl, new BMap.Size(24, 24), {anchor: new BMap.Size(12, 12)});	
 	var marker = new BMap.Marker(new BMap.Point(lon,lat), {icon: icon});
-	var lb = new BMap.Label(label, {offset: new BMap.Size(20,-10)});
+	var lb = new BMap.Label(aid, {offset: new BMap.Size(20,-10)});
 	lb.setStyle({border:0, background: "#eeeeee"});
 	marker.setLabel(lb);
 	var infowindow = new BMap.InfoWindow(msg, {width:300});
@@ -167,26 +157,25 @@ function setstation(tmstr, lon, lat, label, alt, speed, head, vr)
         	});
 	})();
 	map.addOverlay(marker);
-	markers[label]= marker;
-	lasttms[label] = tm;
-	iconurls[label]=iconurl;
-	infowindows[label]=infowindow;
-	if(tm>lasttm) lasttm = tm;
+	markers[aid]= marker;
+	lasttms[aid] = tm;
+	iconurls[aid] = iconurl;
+	infowindows[aid] = infowindow;
 	// 处理航迹
 	var p = new BMap.Point(lon,lat);
 	if(!centered) {
-		centered=true;
+		centered = true;
 		map.centerAndZoom(p, 12);
 	}
-	movepaths[label] = new Array();
-	movepaths[label].push (p);
-	polylines[label] = new Array();
-	polylines[label] = new BMap.Polyline(movepaths[label],{strokeColor:getcolor(label), strokeWeight:4, strokeOpacity:0.9});
-	map.addOverlay(polylines[label]);
-	movepoints[label] = new Array();
+	movepaths[aid] = new Array();
+	movepaths[aid].push (p);
+	polylines[aid] = new Array();
+	polylines[aid] = new BMap.Polyline(movepaths[aid], {strokeColor:getcolor(aid), strokeWeight:4, strokeOpacity:0.9});
+	map.addOverlay(polylines[aid]);
+	movepoints[aid] = new Array();
 	if(display_pathpoints) {
-		m = addp(label,lon,lat,msg);
-		movepoints[label].push(m);
+		m = addp(aid,lon,lat,msg);
+		movepoints[aid].push(m);
 	}
 }
 
@@ -208,7 +197,7 @@ map.addEventListener('resize', map_resize);
 
 map.centerAndZoom(new BMap.Point(108.940178,34.5), 6);
 
-setTimeout("deleteoldstation();","2000");
+setTimeout("deleteoldstation();", "2000");
 </script>
 </body>
 </html>
