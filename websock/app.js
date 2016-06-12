@@ -25,10 +25,10 @@ udpserver.on('message', function (msg, remote) {
 	for ( uidx in usersockets ) {
 		if( lon1[uidx] <= obj.lon && obj.lon <=lon2[uidx]
 		  &&lat1[uidx] <= obj.lat && obj.lat <=lat2[uidx] ) {
-			console.log("sending to user "+userindex[uidx]);
+//			console.log("sending to user "+userindex[uidx]);
 			usersockets[uidx].emit('ADSB', obj);
-		} else
-			console.log("do not sending to user "+userindex[uidx]);
+		} 
+//		else console.log("do not sending to user "+userindex[uidx]);
 	}
 });
 
@@ -180,7 +180,7 @@ io.on('connection', function(socket){
 	});
 	socket.on('viewchange', function(data){
 //		(function(){
-		console.log('websocket user '+userindex[socket.id]+' viewchange: '+data.lon1+'-'+data.lon2+'/'+data.lat1+'-'+data.lat2);
+//		console.log('websocket user '+userindex[socket.id]+' viewchange: '+data.lon1+'-'+data.lon2+'/'+data.lat1+'-'+data.lat2);
 		lon1[socket.id]=data.lon1;
 		lon2[socket.id]=data.lon2;
 		lat1[socket.id]=data.lat1;
