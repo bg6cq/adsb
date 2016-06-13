@@ -70,15 +70,19 @@ insert into user values('username',md5('password'));
 
 树莓派dump1090安装
 <pre>
-http://www.satsignal.eu/raspberry-pi/dump1090.html
+参考： http://www.satsignal.eu/raspberry-pi/dump1090.html
 
+1. 安装系统
+https://www.raspberrypi.org/downloads/raspbian/ RASPBIAN JESSIE LITE
+https://www.raspberrypi.org/documentation/installation/installing-images/README.md
 
-1. https://www.raspberrypi.org/downloads/raspbian/ RASPBIAN JESSIE LITE
-2. https://www.raspberrypi.org/documentation/installation/installing-images/README.md
-3. login as pi, raspberry
+2. 更新系统，登录名 pi, 密码raspberry
 sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get install git-core git cmake libusb-1.0.0-dev build-essential
+
+3. 安装sdr驱动，禁用系统驱动
+cd /home/pi
 git clone git://git.osmocom.org/rtl-sdr.git
 cd rtl-sdr
 mkdir build
@@ -91,18 +95,18 @@ sudo ldconfig
 
 sudo cp ./rtl-sdr/rtl-sdr.rules /etc/udev/rules.d/
 
-sudo vi /etc/modprobe.d/no-rtl.conf     Add the following lines to the new file:
+sudo vi /etc/modprobe.d/no-rtl.conf     增加下面的3行内容(禁止默认的系统驱动)
 blacklist dvb_usb_rtl28xxu
 blacklist rtl2832
 blacklist rtl2830
 
 sudo reboot
 
-rtl_test -t will see the RTL2832U
+rtl_test -t  此时能看到RTL2832U说明sdr驱动安装成功
 
 4. 校准频率
-mkdir ~/kal
-cd ~/kal
+mkdir /home/pi/kal
+cd /home/pi/kal
 sudo apt-get install libtool autoconf automake libfftw3-dev
 git clone https://github.com/asdil12/kalibrate-rtl.git
 cd kalibrate-rtl
@@ -112,13 +116,14 @@ git checkout arm_memory		# Essential for the Raspberry Pi
 make
 sudo make install
 
+使用GSM基站信号校准RTL2832U频率漂移
 kal -s GSM900 -d 0 -g 40  找出功率最高的channel
 然后
 kal -c <channel> -d 0 -g 40
-校准
+校准，记录下ppm频率漂移，我这里是40
 
-5. 
-cd ~
+5.安装dump1090
+cd /home/pi
 git clone git://github.com/MalcolmRobb/dump1090.git
 cd dump1090
 make  (如果错误，执行 sudo apt-get install pkg-config 后再make)
@@ -126,11 +131,11 @@ make  (如果错误，执行 sudo apt-get install pkg-config 后再make)
 这时 ./dump1090 --raw  能看到输出
 
 6. 设置自动启动
-vi /home/pi/run ，写入以下4行内容
-
+vi /home/pi/run ，写入以下5行内容(其中-10的含义是自动增益，40是前面的频率漂移参数，可以不设置)
 #!/bin/bash
 while true
 do /home/pi/dump1090/dump1090 --gain -10 --ppm 40 --raw | nc 202.141.176.2 33001
+sleep 5
 done
 
 
@@ -138,6 +143,4 @@ done
 
 sudo vi /etc/rc.local 增加一行
 /home/pi/run &
-
-
 </pre>
