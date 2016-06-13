@@ -61,7 +61,7 @@ kal -c <channel> -d 0 -g 40
 校准，记录下ppm频率漂移，我这里是40
 </pre>
 
-5.安装dump1090(bg6cq是我修改的版本，修改一些小bug)<p>
+5. 安装dump1090(bg6cq是我修改的版本，修改一些小bug)<p>
 <pre>
 cd /home/pi
 git clone git://github.com/bg6cq/dump1090.git 
@@ -80,7 +80,6 @@ sleep 5
 done
 </pre>
 执行 chmod a+x /home/pi/run<p>
-
 sudo vi /etc/rc.local 增加一行<p>
 <pre>
 /home/pi/run &
@@ -92,7 +91,6 @@ sudo vi /etc/rc.local 增加一行<p>
 ln -s /usr/src/adsb/web /var/www/html/addsb<p>
 
 <pre>
-
 使用方法：
 mkdir /var/log/adsb     用来保存收到的数据包
 
@@ -100,7 +98,6 @@ mkdir /var/log/adsb     用来保存收到的数据包
 在dump1090机器上执行
 ./dump1090 --raw | nc X.X.X.X 31001 
 X.X.X.X 是运行adsb服务程序的机器
-
 
 
 数据库创建命令：
