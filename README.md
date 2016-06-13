@@ -6,21 +6,24 @@ https://github.com/etabbone/01.ADSB_BSBv6_UPS<br>
 http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html<p>
 
 
-树莓派dump1090安装
+<h3>树莓派dump1090安装</h3>
 
+参考： http://www.satsignal.eu/raspberry-pi/dump1090.html<p>
+
+1. 安装系统<p>
 <pre>
-参考： http://www.satsignal.eu/raspberry-pi/dump1090.html
-
-1. 安装系统
 https://www.raspberrypi.org/downloads/raspbian/ RASPBIAN JESSIE LITE
 https://www.raspberrypi.org/documentation/installation/installing-images/README.md
-
-2. 更新系统，登录名 pi, 密码raspberry
+</pre>
+2. 更新系统，登录名 pi, 密码raspberry<p>
+<pre>
 sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get install git-core git cmake libusb-1.0.0-dev build-essential
+</pre>
 
-3. 安装sdr驱动，禁用系统驱动
+3. 安装sdr驱动，禁用系统驱动<p>
+<pre>
 cd /home/pi
 git clone git://git.osmocom.org/rtl-sdr.git
 cd rtl-sdr
@@ -42,8 +45,10 @@ blacklist rtl2830
 sudo reboot
 
 rtl_test -t  此时能看到RTL2832U说明sdr驱动安装成功
+</pre>
 
-4. 校准频率
+4. 校准频率(注：这一步可以跳过去)<p>
+<pre>
 mkdir /home/pi/kal
 cd /home/pi/kal
 sudo apt-get install libtool autoconf automake libfftw3-dev
@@ -61,15 +66,17 @@ kal -s GSM900 -d 0 -g 40  找出功率最高的channel
 kal -c <channel> -d 0 -g 40
 校准，记录下ppm频率漂移，我这里是40
 
-5.安装dump1090
+5.安装dump1090(bg6cq是我修改的版本，修改一些小bug)
 cd /home/pi
-git clone git://github.com/MalcolmRobb/dump1090.git
+git clone git://github.com/bg6cq/dump1090.git 
 cd dump1090
 make  (如果错误，执行 sudo apt-get install pkg-config 后再make)
 
 这时 ./dump1090 --raw  能看到输出
+</pre>
 
-6. 设置自动启动
+6. 设置自动启动<p>
+<pre>
 vi /home/pi/run ，写入以下5行内容(其中-10的含义是自动增益，40是前面的频率漂移参数，可以不设置)
 #!/bin/bash
 while true
@@ -84,9 +91,10 @@ sudo vi /etc/rc.local 增加一行
 /home/pi/run &
 </pre>
 
+<h3>WEB服务安装</h3>
 
 将 web 目录设置在 http服务器可见，如<br>
-ln -s /usr/src/adsb/web /var/www/html/addsb
+ln -s /usr/src/adsb/web /var/www/html/addsb<p>
 
 <pre>
 
