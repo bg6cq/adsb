@@ -1,7 +1,7 @@
 var DB = require('./db').DB;
 
 var User = DB.Model.extend({
-   tableName: 'tblUsers',
+   tableName: 'WebUsers',
    idAttribute: 'userId',
 });
 
