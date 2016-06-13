@@ -792,6 +792,7 @@ int main(int argc, char *argv[])
 		if( Fork()==0 ) {
 			Close(listen_fd);
 			Process(c_fd);
+			exit(0);
 		}
 #endif
 		Close(c_fd);
