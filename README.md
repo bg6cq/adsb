@@ -31,12 +31,9 @@ mkdir build
 cd build
 cmake ../ -DINSTALL_UDEV_RULES=ON
 make
-
 sudo make install
 sudo ldconfig
-
 sudo cp ./rtl-sdr/rtl-sdr.rules /etc/udev/rules.d/
-
 sudo vi /etc/modprobe.d/no-rtl.conf     增加下面的3行内容(禁止默认的系统驱动)
 blacklist dvb_usb_rtl28xxu
 blacklist rtl2832
@@ -65,8 +62,10 @@ kal -s GSM900 -d 0 -g 40  找出功率最高的channel
 然后
 kal -c <channel> -d 0 -g 40
 校准，记录下ppm频率漂移，我这里是40
+</pre>
 
-5.安装dump1090(bg6cq是我修改的版本，修改一些小bug)
+5.安装dump1090(bg6cq是我修改的版本，修改一些小bug)<p>
+<pre>
 cd /home/pi
 git clone git://github.com/bg6cq/dump1090.git 
 cd dump1090
