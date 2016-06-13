@@ -1,4 +1,4 @@
-ADS-B 解码程序<p>
+<h3>ADS-B 解码程序</h3>
 
 使用了以下项目的资料和代码，感谢原作者<br>
 http://adsb-decode-guide.readthedocs.io<br>
@@ -38,9 +38,7 @@ sudo vi /etc/modprobe.d/no-rtl.conf     增加下面的3行内容(禁止默认�
 blacklist dvb_usb_rtl28xxu
 blacklist rtl2832
 blacklist rtl2830
-
 sudo reboot
-
 rtl_test -t  此时能看到RTL2832U说明sdr驱动安装成功
 </pre>
 
@@ -56,7 +54,6 @@ git checkout arm_memory		# Essential for the Raspberry Pi
 ./configure
 make
 sudo make install
-
 使用GSM基站信号校准RTL2832U频率漂移
 kal -s GSM900 -d 0 -g 40  找出功率最高的channel
 然后
@@ -70,9 +67,8 @@ cd /home/pi
 git clone git://github.com/bg6cq/dump1090.git 
 cd dump1090
 make  (如果错误，执行 sudo apt-get install pkg-config 后再make)
-
-这时 ./dump1090 --raw  能看到输出
 </pre>
+这时 ./dump1090 --raw  能看到输出<p>
 
 6. 设置自动启动<p>
 <pre>
@@ -82,11 +78,11 @@ while true
 do /home/pi/dump1090/dump1090 --gain -10 --ppm 40 --raw | nc 202.141.176.2 33001
 sleep 5
 done
+</pre>
+执行 chmod a+x /home/pi/run<p>
 
-
-执行 chmod a+x /home/pi/run
-
-sudo vi /etc/rc.local 增加一行
+sudo vi /etc/rc.local 增加一行<p>
+<pre>
 /home/pi/run &
 </pre>
 
