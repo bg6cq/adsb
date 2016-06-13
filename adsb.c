@@ -666,7 +666,7 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			S_Dif = (*(DATA+6)>>7) & 1;
 			Dif = *(DATA+6) & 0x7F;
 			if(S_EW) 
-				V_we=1.0-V_EW;
+				V_we = 1.0-V_EW;
 			else V_we = V_EW-1.0;
 			if(S_NS) 
 				V_sn = 1.0-V_NS;
@@ -674,10 +674,10 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			V = sqrt(V_sn*V_sn + V_we*V_we);
 			h = head_deg(V_we, V_sn);
 			
-		//	LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
+	//		LOG("S_EW:%d V_we=%f S_NS:%d V_sn=%f V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n",S_EW,V_we,S_NS,V_sn,V,h, S_Vr==0?'+':'-',Vr);
 	//		LOG("%s V=%.2f(kn) h=%.02f VR=%c%d(ft/min)\n" ,aid[aidindex], V, h, S_Vr==0?'+':'-', Vr);
-			aspeed[aidindex]=V;
-			ah[aidindex]=round(h);
+			aspeed[aidindex] = V;
+			ah[aidindex] = round(h);
 			avr[aidindex] = (S_Vr==0?Vr:-Vr);
 		} else if(ST==3 || ST==4) { // subtype 3 or 4
 /*
@@ -702,9 +702,9 @@ LOG("DF=%d CA=%d ICAO=%s TC=%d ",DF,CA,ICAO24,TC);
 			if(H_S)
 				h = Hdg/1024.0*360.0;
 			// LOG("%s V=%d(kn,%s) h=%.02f VR=%c%d(ft/min)\n", aid[aidindex], AS, AS_t==0?"IAS":"TAS", h, S_Vr==0?'+':'-', Vr);
-			aspeed[aidindex]=AS;
+			aspeed[aidindex] = AS;
 			ah[aidindex] = round(h);
-			avr[aidindex] = (S_Vr==0?AS:-AS);
+			avr[aidindex] = (S_Vr==0?Vr:-Vr);
 		}
 	}
 }
