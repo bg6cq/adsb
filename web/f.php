@@ -13,7 +13,9 @@ date_default_timezone_set( 'Asia/Shanghai');
 if (!isset($_SESSION["jiupian"]))
 	$_SESSION["jiupian"]=1;
 
-$span = $_REQUEST['span'];
+$span = 5;
+if(isset($_REQUEST['span']))
+	$span = $_REQUEST['span'];
 
 if($span<=0) $span = 5;
 if($span>60) $span = 5;
