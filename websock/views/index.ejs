@@ -13,7 +13,8 @@
 <body>
 <div id="allmap"></div>
 <div id=menu>
-<input type=checkbox checked id=disp_pathpoints onclick="change_pathpoints(this);">显示航点</input>&nbsp; 
+<input type=checkbox id=disp_path checked onclick="change_pathdisp(this);">显示航迹</input>&nbsp;
+<input type=checkbox id=disp_pathpoints onclick="change_pathpointsdisp(this);">显示航点</input>&nbsp; 
 显示老化<select id=path_time onchange="span=this.options[this.options.selectedIndex].value;">
 <option value=1>1分钟</option>
 <option value=5 selected>5分钟</option>
@@ -52,7 +53,8 @@ var infowindows = {};
 var movepaths = {};
 var polylines = {};
 var movepoints = {};
-var display_pathpoints = true;
+var display_path = true;
+var display_pathpoints = false;
 var span = 5;
 var centered = false;
 
@@ -80,7 +82,23 @@ function addp(aid, lon, lat, msg) {
 	return m;
 }
 
-function change_pathpoints()
+function change_pathdisp()
+{
+	if(!display_path) {
+		display_path = true;
+		return;
+	}
+	for ( aid in lasttms ) {
+		for(i=0;i<movepoints[aid].length;i++) 
+			map.removeOverlay(movepoints[aid][i]);
+		movepoints[aid].splice(0, movepoints[aid].length);
+		movepaths[aid].splice(0, movepaths[aid].length);
+		polylines[aid].setPath(movepaths[aid]);
+	}
+	display_path = false;
+}
+
+function change_pathpointsdisp()
 {
 	if(!display_pathpoints) {
 		display_pathpoints = true;
@@ -135,9 +153,11 @@ function updateaid(tmstr, aid, lon, lat, alt, speed, head, vr)
 		}
 		lasttms[aid] = tm;
 		// 更新航迹
-		var p = new BMap.Point(lon,lat);
-		movepaths[aid].push (p);
-		polylines[aid].setPath(movepaths[aid]);
+		if(display_path)  {
+			var p = new BMap.Point(lon,lat);
+			movepaths[aid].push (p);
+			polylines[aid].setPath(movepaths[aid]);
+		}
 		if(display_pathpoints) {
 			m = addp(aid,lon,lat,msg);
 			movepoints[aid].push(m);
@@ -161,15 +181,17 @@ function updateaid(tmstr, aid, lon, lat, alt, speed, head, vr)
 	lasttms[aid] = tm;
 	iconurls[aid] = iconurl;
 	infowindows[aid] = infowindow;
-	// 处理航迹
-	var p = new BMap.Point(lon,lat);
 	if(!centered) {
 		centered = true;
 		map.centerAndZoom(p, 12);
 	}
-	movepaths[aid] = new Array();
-	movepaths[aid].push (p);
+	// 处理航迹
 	polylines[aid] = new Array();
+	movepaths[aid] = new Array();
+	if(display_path)  {
+		var p = new BMap.Point(lon,lat);
+		movepaths[aid].push (p);
+	}
 	polylines[aid] = new BMap.Polyline(movepaths[aid], {strokeColor:getcolor(aid), strokeWeight:4, strokeOpacity:0.9});
 	map.addOverlay(polylines[aid]);
 	movepoints[aid] = new Array();
