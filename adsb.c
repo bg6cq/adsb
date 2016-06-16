@@ -22,6 +22,9 @@ http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
 //#define DEBUG 1
 //#define MOREDEBUG 1
 
+
+#define PORT "33001"
+
 #define LOG printf
 
 #define MAXLEN 16384
@@ -673,20 +676,20 @@ int main(int argc, char *argv[])
 #ifndef DEBUG
 	daemon_init("adsb",LOG_DAEMON);
 #endif
-	mysql=connectdb();
-	listen_fd = Tcp_listen("0.0.0.0","33001",(socklen_t *)&llen);
+	listen_fd = Tcp_listen("0.0.0.0", PORT, (socklen_t *)&llen);
 
 	while (1) {
 		int c_fd;
 		struct sockaddr sa; int slen;
 		slen = sizeof(sa);
 		c_fd = Accept(listen_fd, &sa, (socklen_t *)&slen);
-#ifdef DEBUG
-		Process(c_fd);
-#else
+#ifndef DEBUG
 		if( Fork()==0 ) {
 			Close(listen_fd);
+#endif
+			mysql = connectdb();
 			Process(c_fd);
+#ifndef DEBUG
 			exit(0);
 		}
 #endif
