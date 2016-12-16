@@ -116,7 +116,7 @@ void Process(int server_tcp_fd, char *udp_port)
            	FD_SET(server_udp_fd, &rset);
                 max_fd = max(server_tcp_fd,server_udp_fd);
 
-                m = Select (max_fd + 1, &rset, NULL, NULL, &tv);
+                m = select (max_fd + 1, &rset, NULL, NULL, &tv);
 
                 if (m == 0)
                         continue;
@@ -124,7 +124,8 @@ void Process(int server_tcp_fd, char *udp_port)
                 if (FD_ISSET(server_tcp_fd, &rset)) {
                         n = recv (server_tcp_fd, buf, MAXLEN,0);
                         if(n<=0)   {
-                                exit(0);
+				close(server_udp_fd);
+                                return ;
                         }
 			buf[n]=0;
 #ifdef DEBUG
@@ -138,7 +139,7 @@ void Process(int server_tcp_fd, char *udp_port)
 			 n = recvfrom(server_udp_fd, buf, MAXLEN, 0, 
                      		(struct sockaddr *)&clientaddr,
                      		&addrlen);
-        		if (n < 0)
+        		if (n <= 0)
             			continue;
 			buf[n]=0;
 #ifdef DEBUG
