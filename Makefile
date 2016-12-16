@@ -1,4 +1,4 @@
-all: adsb send2servers tcp2servers udp2tcp tcp2multiudp
+all: adsb send2servers tcp2servers udp2tcp tcp2multiudp udp2multiudp
 
 adsb: adsb.c db.h
 	gcc -g -o adsb adsb.c -lm  -lmysqlclient -L/usr/lib64/mysql/
@@ -10,5 +10,7 @@ tcp2servers: tcp2servers.c
 	gcc -g -o tcp2servers tcp2servers.c
 tcp2multiudp: tcp2multiudp.c
 	gcc -g -o tcp2multiudp tcp2multiudp.c
+udp2multiudp: udp2multiudp.c
+	gcc -g -o udp2multiudp udp2multiudp.c
 
 udp2tcp: udp2tcp.c
